@@ -26,10 +26,14 @@ let percentage_dropdown ?default msg =
 let view_parameters (model : Model.model) =
   div
     [
-      view_label "Litters per year"
-        (int_dropdown ~default:model.litters_per_year 1 4
-           (fun litters_per_year ->
-             Model.SetModel { model with litters_per_year }));
+      view_label "Months of gestation"
+        (int_dropdown ~default:model.months_of_gestation 1 12
+           (fun months_of_gestation ->
+             Model.SetModel { model with months_of_gestation }));
+      view_label "Months before mature"
+        (int_dropdown ~default:model.months_before_mature 1 12
+           (fun months_before_mature ->
+             Model.SetModel { model with months_before_mature }));
       view_label "Kittens per litter"
         (int_dropdown ~default:model.kittens_per_litter 1 8
            (fun kittens_per_litter ->

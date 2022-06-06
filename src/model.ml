@@ -14,7 +14,8 @@ let round_div m n =
 let take_percentage n (Percent p) = round_div (n * p) 100
 
 type model = {
-  litters_per_year : int;
+  months_of_gestation : int;
+  months_before_mature : int;
   kittens_per_litter : int;
   percentage_of_female_kittens : percentage;
   percentage_of_kittens_who_survive_to_sexual_maturity : percentage;
@@ -26,7 +27,8 @@ type model = {
 
 let init : model =
   {
-    litters_per_year = 2;
+    months_of_gestation = 2;
+    months_before_mature = 4;
     kittens_per_litter = 4;
     percentage_of_female_kittens = Percent 50;
     percentage_of_kittens_who_survive_to_sexual_maturity = Percent 50;
@@ -71,7 +73,8 @@ let newborn_generation model =
 
 let grow_generation model generation =
   if
-    generation.age * model.litters_per_year
+    generation.age
+    * (12 / (model.months_before_mature + model.months_of_gestation))
     < model.average_lifespan_of_a_feral_cat - 1
   then Some { generation with age = generation.age + 1 }
   else None
@@ -86,7 +89,10 @@ let history model =
     | 0 -> []
     | years -> model :: aux (grow_population model) (years - 1)
   in
-  aux model ((model.years_to_project * model.litters_per_year) + 1)
+  aux model
+    (model.years_to_project
+     * (12 / (model.months_before_mature + model.months_of_gestation))
+    + 1)
 
 type msg = GrowPopulation | SetModel of model
 
