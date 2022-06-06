@@ -1,7 +1,6 @@
 open Vdom
 
 let view_int n = text (Printf.sprintf "%d" n)
-let view_float x = text (Printf.sprintf "%f" x)
 let string_of_percentage (Model.Percent p) = Printf.sprintf "%d %%" p
 let view_percentage p = text (string_of_percentage p)
 let view_label lbl view = div [ text (Printf.sprintf "%s: " lbl); view ]
@@ -23,13 +22,6 @@ let int_dropdown ?default from_int to_int msg =
 let percentage_dropdown ?default msg =
   let options = List.init 101 (fun i -> Model.Percent i) in
   dropdown ?default options string_of_percentage msg
-
-let float_dropdown ?default from_float to_float step msg =
-  let length = int_of_float ((to_float -. from_float) /. step) in
-  let options =
-    List.init length (fun i -> from_float +. (float_of_int i *. step))
-  in
-  dropdown ?default options string_of_float msg
 
 let view_parameters (model : Model.model) =
   div
@@ -71,25 +63,20 @@ let view_parameters (model : Model.model) =
              Model.SetModel { model with years_to_project }));
     ]
 
-let view_generation (generation : Model.generation) =
-  div
-    [
-      view_label "Age" (view_int generation.age);
-      view_label "Fertile females" (view_int generation.fertile_females);
-      view_label "Infertile females" (view_int generation.infertile_females);
-      view_label "Males" (view_int generation.males);
-    ]
-
 let view_population (model : Model.model) =
-  div
+  let newborns = List.hd model.population in
+  let fertile_females = newborns.fertile_females in
+  let females_surviving = fertile_females + newborns.infertile_females in
+  let kittens_surviving = females_surviving + newborns.males in
+  elt "tr"
     [
-      view_label "Active females" (view_int (Model.active_females model));
-      view_label "Kittens born" (view_int (Model.kittens_born model));
-      view_label "Total population" (view_int (Model.population_size model));
-      elt "ul"
-        (List.map
-           (fun gen -> elt "li" [ view_generation gen ])
-           model.population);
+      elt "td" [ view_int (Model.active_females model) ];
+      elt "td" [ view_int (Model.kittens_born model) ];
+      elt "td" [ view_int kittens_surviving ];
+      elt "td" [ view_int females_surviving ];
+      elt "td" [ view_int fertile_females ];
+      elt "td" [ view_int (Model.deaths model) ];
+      elt "td" [ view_int (Model.population_size model) ];
     ]
 
 let view (model : Model.model) =
@@ -100,5 +87,16 @@ let view (model : Model.model) =
           [ onclick (fun _ -> Model.GrowPopulation); type_button; value "Grow" ];
       view_parameters model;
       elt "hr" [];
-      view_population model;
+      elt "table"
+        ([
+           elt "tr" [];
+           elt "th" [ text "Active females" ];
+           elt "th" [ text "Kittens born" ];
+           elt "th" [ text "Kittens surviving" ];
+           elt "th" [ text "Females surviving" ];
+           elt "th" [ text "Fertile females" ];
+           elt "th" [ text "Deaths" ];
+           elt "th" [ text "Total population" ];
+         ]
+        @ List.map view_population (Model.history model));
     ]
