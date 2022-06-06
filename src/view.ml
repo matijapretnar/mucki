@@ -83,24 +83,98 @@ let view_population (model : Model.model) =
       elt "td" [ view_int (Model.population_size model) ];
     ]
 
+let mesecev n =
+  match n mod 100 with
+  | 1 -> "mesec"
+  | 2 -> "meseca"
+  | 3 | 4 -> "mesece"
+  | _ -> "mesecev"
+
 let view (model : Model.model) =
+  let samica = List.hd Imena.zenska and samec = List.hd Imena.moska in
   div
+    ~a:[ class_ "content" ]
     [
-      input []
-        ~a:
-          [ onclick (fun _ -> Model.GrowPopulation); type_button; value "Grow" ];
-      view_parameters model;
-      elt "hr" [];
+      elt "h2" [ text "Na začetku…" ];
+      elt "p"
+        [
+          text
+            (Printf.sprintf
+               "sta bila 2 potepuha: mačka %s in njen izbranec %s. " samica
+               samec);
+          text
+            "Mačke so breje med XXX in YYY mesecev, pa recimo, da je AAA breja ";
+          int_dropdown ~default:model.months_of_gestation 1 12
+            (fun months_of_gestation ->
+              Model.SetModel { model with months_of_gestation });
+          text (mesecev model.months_of_gestation);
+          text
+            "(Če želite, lahko to in druge številke v zgodbi nastavite na \
+             svoje vrednosti.)";
+        ];
+      elt "h2"
+        [
+          text
+            (Printf.sprintf "Čez %d %s…" model.months_of_gestation
+               (mesecev model.months_of_gestation));
+        ];
+      elt "p"
+        [
+          text "na svet primijavka ";
+          int_dropdown ~default:model.kittens_per_litter 1 8
+            (fun kittens_per_litter ->
+              Model.SetModel { model with kittens_per_litter });
+          text "muckov: AAA, BBB, CCC, DDD, EEE, FFF.";
+          text
+            (Printf.sprintf "Zdaj jih je že %d." (2 + model.kittens_per_litter));
+        ];
+      elt "h2"
+        [
+          (let months =
+             model.months_of_gestation + model.months_before_mature
+           in
+           text (Printf.sprintf "Čez %d %s…" months (mesecev months)));
+        ];
+      text "Še ";
+      int_dropdown ~default:model.months_before_mature 1 12
+        (fun months_before_mature ->
+          Model.SetModel { model with months_before_mature });
+      text (mesecev model.months_before_mature);
+      text
+        " kasneje so tudi mladički pripravljeni na akcijo. no, ne vsi, \
+         aktivnih je le %%% samičk. Poleg AAA še ... poelg). Tako se mesecev \
+         AAA izležejo XYZ, BBB, ... Da se ne bomo izgubili v imenih, si \
+         zapomnimo le številke. Zaenkrat je situacija sledeča:";
       elt "table"
         ([
            elt "tr" [];
-           elt "th" [ text "Active females" ];
-           elt "th" [ text "Kittens born" ];
-           elt "th" [ text "Kittens surviving" ];
-           elt "th" [ text "Females surviving" ];
-           elt "th" [ text "Fertile females" ];
-           elt "th" [ text "Deaths" ];
-           elt "th" [ text "Total population" ];
+           elt "th" [ text "Aktivne samice" ];
+           elt "th" [ text "Rojeni mladički" ];
+           elt "th" [ text "Preživeli mladički" ];
+           elt "th" [ text "Preživele samičke" ];
+           elt "th" [ text "Plodne samičke" ];
+           elt "th" [ text "Smrti" ];
+           elt "th" [ text "Velikost populacije" ];
          ]
         @ List.map view_population (Model.history model));
+      text
+        "Kot vidimo, se na vsakih XXX + YYY mesecev zgodba ponovi. Če \
+         nadaljujemo z izračuni do XXX, ko naša AAA ostari, dobimo sledeče \
+         številke:";
+      elt "table"
+        ([
+           elt "tr" [];
+           elt "th" [ text "Aktivne samice" ];
+           elt "th" [ text "Rojeni mladički" ];
+           elt "th" [ text "Preživeli mladički" ];
+           elt "th" [ text "Preživele samičke" ];
+           elt "th" [ text "Plodne samičke" ];
+           elt "th" [ text "Smrti" ];
+           elt "th" [ text "Velikost populacije" ];
+         ]
+        @ List.map view_population (Model.history model));
+      text
+        "Rast je od tam naprej malenkost počasnejša, saj se starejše mačke \
+         upokojijo, vendar se to komaj opazi, saj je vmes že toliko drugih \
+         mlajših.";
     ]
