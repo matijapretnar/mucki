@@ -26,8 +26,8 @@ type model = {
 
 let init : model =
   {
-    litters_per_year = 1;
-    kittens_per_litter = 8;
+    litters_per_year = 2;
+    kittens_per_litter = 4;
     percentage_of_female_kittens = Percent 50;
     percentage_of_kittens_who_survive_to_sexual_maturity = Percent 50;
     percentage_of_fertile_sexually_mature_females = Percent 90;
@@ -71,8 +71,8 @@ let newborn_generation model =
 
 let grow_generation model generation =
   if
-    generation.age
-    < (model.average_lifespan_of_a_feral_cat * model.litters_per_year) - 1
+    generation.age * model.litters_per_year
+    < model.average_lifespan_of_a_feral_cat - 1
   then Some { generation with age = generation.age + 1 }
   else None
 
@@ -86,7 +86,7 @@ let history model =
     | 0 -> []
     | years -> model :: aux (grow_population model) (years - 1)
   in
-  aux model model.years_to_project
+  aux model ((model.years_to_project * model.litters_per_year) + 1)
 
 type msg = GrowPopulation | SetModel of model
 
