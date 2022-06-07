@@ -19,7 +19,6 @@ type parameters = {
 
 type model = {
   parameters : parameters;
-  years_to_project : int;
   population : generation list;
   male_names : string list;
   female_names : string list;
@@ -38,7 +37,6 @@ let default_parameters =
 let init : model =
   {
     parameters = default_parameters;
-    years_to_project = 7;
     population = [ { age = 0; females = 1; males = 1 } ];
     male_names = Imena.moska;
     female_names = Imena.zenska;
@@ -91,17 +89,22 @@ let grow_population model =
   in
   { model with population = newborns :: adults }
 
-let history model =
-  let rec aux model = function
-    | 0 -> []
-    | years -> model :: aux (grow_population model) (years - 1)
-  in
-  aux model
-    (model.years_to_project
+let rec history model = function
+  | 0 -> []
+  | years -> model :: history (grow_population model) (years - 1)
+
+let long_history model =
+  history model
+    (model.parameters.average_lifespan_of_a_feral_cat
      * (12
        / (model.parameters.months_before_mature
         + model.parameters.months_of_gestation))
     + 1)
+
+let short_history model = history model 4
+
+let rest_of_the_history model =
+  long_history model |> List.filteri (fun i _ -> i > 4)
 
 type msg = GrowPopulation | SetParameters of parameters
 

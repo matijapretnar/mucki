@@ -23,16 +23,6 @@ let percentage_dropdown ?default msg =
   let options = List.init 11 (fun i -> Model.Percent (10 * i)) in
   dropdown ?default options string_of_percentage msg
 
-let view_parameters (parameters : Model.parameters) =
-  div
-    [
-      view_label "Average lifespan of a feral cat"
-        (int_dropdown ~default:parameters.average_lifespan_of_a_feral_cat 1 20
-           (fun average_lifespan_of_a_feral_cat ->
-             Model.SetParameters
-               { parameters with average_lifespan_of_a_feral_cat }));
-    ]
-
 let view_population (model : Model.model) =
   let newborns = List.hd model.population in
   let females_surviving = newborns.females in
@@ -43,7 +33,6 @@ let view_population (model : Model.model) =
       elt "td" [ view_int (Model.kittens_born model) ];
       elt "td" [ view_int kittens_surviving ];
       elt "td" [ view_int females_surviving ];
-      elt "td" [ view_int (Model.deaths model) ];
       elt "td" [ view_int (Model.population_size model) ];
     ]
 
@@ -83,6 +72,9 @@ let rec view_list view_element = function
   | x :: xs -> view_element x :: text ", " :: view_list view_element xs
 
 let view (model : Model.model) =
+  let perioda =
+    model.parameters.months_before_mature + model.parameters.months_of_gestation
+  in
   let samec, samica, model = Model.parents model in
   let sinovi, hcere, model = Model.children model in
   let preziveli = Model.survivors model.parameters sinovi
@@ -202,14 +194,18 @@ let view (model : Model.model) =
              elt "li"
                (view_cat mother :: text ": " :: view_list view_cat grandchildren))
            vnuki);
-      text " in čez XXX mesecev spet:";
+      text
+        (Printf.sprintf " in čez %d mesec%s spet" perioda
+           (mnozina "" "a" "e" "ev" perioda));
       elt "ul"
         (List.map
            (fun (mother, grandchildren) ->
              elt "li"
                (view_cat mother :: text ": " :: view_list view_cat grandchildren))
            pravnuki);
-      text " in čez XXX mesecev spet:";
+      text
+        (Printf.sprintf " in čez %d mesec%s spet" perioda
+           (mnozina "" "a" "e" "ev" perioda));
       elt "ul"
         (List.map
            (fun (mother, grandchildren) ->
@@ -221,32 +217,36 @@ let view (model : Model.model) =
          je situacija sledeča:";
       elt "table"
         ([
-           elt "tr" [];
-           elt "th" [ text "Aktivne samice" ];
-           elt "th" [ text "Rojeni mladički" ];
-           elt "th" [ text "Preživeli mladički" ];
-           elt "th" [ text "Preživele samičke" ];
-           elt "th" [ text "Plodne samičke" ];
-           elt "th" [ text "Smrti" ];
-           elt "th" [ text "Velikost populacije" ];
+           elt "tr"
+             [
+               elt "th" [ text "Aktivne samice" ];
+               elt "th" [ text "Rojeni mladički" ];
+               elt "th" [ text "Preživeli mladički" ];
+               elt "th" [ text "Preživele samičke" ];
+               elt "th" [ text "Skupaj" ];
+             ];
          ]
-        @ List.map view_population (Model.history model));
-      text
-        "Kot vidimo, se na vsakih XXX + YYY mesecev zgodba ponovi. Če \
-         nadaljujemo z izračuni do XXX, ko naša AAA ostari, dobimo sledeče \
-         številke:";
+        @ List.map view_population (Model.short_history model));
+      text "Če nadaljujemo z izračuni do";
+      int_dropdown ~default:model.parameters.average_lifespan_of_a_feral_cat 1
+        20 (fun average_lifespan_of_a_feral_cat ->
+          Model.SetParameters
+            { model.parameters with average_lifespan_of_a_feral_cat });
+      text " let, ko naša ";
+      view_cat samica;
+      text " ostari, dobimo sledeče številke:";
       elt "table"
         ([
-           elt "tr" [];
-           elt "th" [ text "Aktivne samice" ];
-           elt "th" [ text "Rojeni mladički" ];
-           elt "th" [ text "Preživeli mladički" ];
-           elt "th" [ text "Preživele samičke" ];
-           elt "th" [ text "Plodne samičke" ];
-           elt "th" [ text "Smrti" ];
-           elt "th" [ text "Velikost populacije" ];
+           elt "tr"
+             [
+               elt "th" [ text "Aktivne samice" ];
+               elt "th" [ text "Rojeni mladički" ];
+               elt "th" [ text "Preživeli mladički" ];
+               elt "th" [ text "Preživele samičke" ];
+               elt "th" [ text "Skupaj" ];
+             ];
          ]
-        @ List.map view_population (Model.history model));
+        @ List.map view_population (Model.rest_of_the_history model));
       text
         "Rast je od tam naprej malenkost počasnejša, saj se starejše mačke \
          upokojijo, vendar se to komaj opazi, saj je vmes že toliko drugih \
