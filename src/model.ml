@@ -1,10 +1,4 @@
-type generation = {
-  age : int;
-  fertile_females : int;
-  infertile_females : int;
-  males : int;
-}
-
+type generation = { age : int; females : int; males : int }
 type percentage = Percent of int
 
 let round_div m n =
@@ -20,7 +14,6 @@ type parameters = {
   kittens_per_litter : int;
   percentage_of_female_kittens : percentage;
   percentage_of_kittens_who_survive_to_sexual_maturity : percentage;
-  percentage_of_fertile_sexually_mature_females : percentage;
   average_lifespan_of_a_feral_cat : int;
 }
 
@@ -39,7 +32,6 @@ let default_parameters =
     kittens_per_litter = 4;
     percentage_of_female_kittens = Percent 50;
     percentage_of_kittens_who_survive_to_sexual_maturity = Percent 50;
-    percentage_of_fertile_sexually_mature_females = Percent 90;
     average_lifespan_of_a_feral_cat = 4;
   }
 
@@ -47,19 +39,17 @@ let init : model =
   {
     parameters = default_parameters;
     years_to_project = 7;
-    population =
-      [ { age = 0; fertile_females = 1; infertile_females = 0; males = 1 } ];
+    population = [ { age = 0; females = 1; males = 1 } ];
     male_names = Imena.moska;
     female_names = Imena.zenska;
   }
 
 let active_females model =
   model.population
-  |> List.map (fun generation -> generation.fertile_females)
+  |> List.map (fun generation -> generation.females)
   |> List.fold_left ( + ) 0
 
-let generation_size generation =
-  generation.fertile_females + generation.infertile_females + generation.males
+let generation_size generation = generation.females + generation.males
 
 let population_size model =
   model.population |> List.map generation_size |> List.fold_left ( + ) 0
@@ -83,13 +73,8 @@ let newborn_generation model =
   let females =
     take_percentage survivors model.parameters.percentage_of_female_kittens
   in
-  let fertile_females =
-    take_percentage females
-      model.parameters.percentage_of_fertile_sexually_mature_females
-  in
-  let infertile_females = females - fertile_females in
   let males = survivors - females in
-  { age = 0; fertile_females; infertile_females; males }
+  { age = 0; females; males }
 
 let grow_generation parameters generation =
   if
@@ -164,9 +149,21 @@ let children model =
   let females, model = new_cats new_female number_of_females model in
   (males, females, model)
 
+let survivors model cats =
+  let cats = Imena.premesaj cats in
+  let number_of_survivors =
+    take_percentage (List.length cats)
+      model.percentage_of_kittens_who_survive_to_sexual_maturity
+  in
+  cats |> Imena.premesaj
+  |> List.filteri (fun i _ -> i < number_of_survivors)
+  |> sort_cats
+
 let grandchildren mothers model =
   List.fold_left
-    (fun (grandchildren, model) mother ->
+    (fun (grandchildren, granddaughters, model) mother ->
       let males, females, model = children model in
-      ((mother, sort_cats (males @ females)) :: grandchildren, model))
-    ([], model) (List.rev mothers)
+      ( (mother, sort_cats (males @ females)) :: grandchildren,
+        females @ granddaughters,
+        model ))
+    ([], [], model) (List.rev mothers)

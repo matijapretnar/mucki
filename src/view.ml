@@ -26,27 +26,6 @@ let percentage_dropdown ?default msg =
 let view_parameters (parameters : Model.parameters) =
   div
     [
-      view_label "Percentage of female kittens"
-        (percentage_dropdown ~default:parameters.percentage_of_female_kittens
-           (fun percentage_of_female_kittens ->
-             Model.SetParameters
-               { parameters with percentage_of_female_kittens }));
-      view_label "Percentage of kittens who survive to sexual maturity"
-        (percentage_dropdown
-           ~default:
-             parameters.percentage_of_kittens_who_survive_to_sexual_maturity
-           (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
-             Model.SetParameters
-               {
-                 parameters with
-                 percentage_of_kittens_who_survive_to_sexual_maturity;
-               }));
-      view_label "Percentage of fertile sexually mature females"
-        (percentage_dropdown
-           ~default:parameters.percentage_of_fertile_sexually_mature_females
-           (fun percentage_of_fertile_sexually_mature_females ->
-             Model.SetParameters
-               { parameters with percentage_of_fertile_sexually_mature_females }));
       view_label "Average lifespan of a feral cat"
         (int_dropdown ~default:parameters.average_lifespan_of_a_feral_cat 1 20
            (fun average_lifespan_of_a_feral_cat ->
@@ -56,8 +35,7 @@ let view_parameters (parameters : Model.parameters) =
 
 let view_population (model : Model.model) =
   let newborns = List.hd model.population in
-  let fertile_females = newborns.fertile_females in
-  let females_surviving = fertile_females + newborns.infertile_females in
+  let females_surviving = newborns.females in
   let kittens_surviving = females_surviving + newborns.males in
   elt "tr"
     [
@@ -65,7 +43,6 @@ let view_population (model : Model.model) =
       elt "td" [ view_int (Model.kittens_born model) ];
       elt "td" [ view_int kittens_surviving ];
       elt "td" [ view_int females_surviving ];
-      elt "td" [ view_int fertile_females ];
       elt "td" [ view_int (Model.deaths model) ];
       elt "td" [ view_int (Model.population_size model) ];
     ]
@@ -108,8 +85,25 @@ let rec view_list view_element = function
 let view (model : Model.model) =
   let samec, samica, model = Model.parents model in
   let sinovi, hcere, model = Model.children model in
-  let vnuki, model =
-    Model.grandchildren (samica :: Model.sort_cats hcere) model
+  let preziveli = Model.survivors model.parameters sinovi
+  and prezivele = Model.survivors model.parameters hcere in
+  let vnuki, vnukinje, model =
+    Model.grandchildren (samica :: Model.sort_cats prezivele) model
+  in
+  let prezivele_vnukinje = Model.survivors model.parameters vnukinje in
+  let pravnuki, pravnukinje, model =
+    Model.grandchildren
+      ((samica :: Model.sort_cats prezivele)
+      @ Model.sort_cats prezivele_vnukinje)
+      model
+  in
+  let prezivele_pravnukinje = Model.survivors model.parameters pravnukinje in
+  let prapravnuki, _, _ =
+    Model.grandchildren
+      ((samica :: Model.sort_cats prezivele)
+      @ Model.sort_cats prezivele_vnukinje
+      @ Model.sort_cats prezivele_pravnukinje)
+      model
   in
   div
     ~a:[ class_ "content" ]
@@ -168,28 +162,60 @@ let view (model : Model.model) =
            in
            text (Printf.sprintf "Čez %d %s…" months (mesecev months)));
         ];
-      text "Še ";
+      text
+        (mnozina "Naslednji " "Naslednja " "Naslednji " "Naslednjih "
+           model.parameters.months_before_mature);
       int_dropdown ~default:model.parameters.months_before_mature 1 12
         (fun months_before_mature ->
           Model.SetParameters { model.parameters with months_before_mature });
-      text (mesecev model.parameters.months_before_mature);
-      text " kasneje so tudi mladički pripravljeni na akcijo. ";
-      text "No, ne vsi, aktivnih je le ";
+      text
+        (mnozina "mesec" "meseca" "meseci" "mesecev"
+           model.parameters.months_before_mature);
+      text " odraščanja ";
+      text
+        (mnozina "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
+           model.parameters.months_before_mature);
+      text ", saj odraslost doživi ";
       percentage_dropdown
-        ~default:model.parameters.percentage_of_fertile_sexually_mature_females
-        (fun percentage_of_fertile_sexually_mature_females ->
+        ~default:
+          model.parameters.percentage_of_kittens_who_survive_to_sexual_maturity
+        (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
           Model.SetParameters
             {
               model.parameters with
-              percentage_of_fertile_sexually_mature_females;
+              percentage_of_kittens_who_survive_to_sexual_maturity;
             });
-      text "samičk. Poleg AAA še ... poelg). ";
+      text " muckov: ";
+      elt "span" (view_list view_cat (Model.sort_cats (preziveli @ prezivele)));
+      text ", ki pa ne počivajo…";
+      elt "h2" [ text "Čez …" ];
+      text "Tudi ";
+      view_cat samica;
+      text " ne počiva, zato so čez ";
+      view_int model.parameters.months_of_gestation;
+      text " ";
+      text (mesecev model.parameters.months_of_gestation);
+      text " tu spet novi mucki:";
       elt "ul"
         (List.map
            (fun (mother, grandchildren) ->
              elt "li"
                (view_cat mother :: text ": " :: view_list view_cat grandchildren))
            vnuki);
+      text " in čez XXX mesecev spet:";
+      elt "ul"
+        (List.map
+           (fun (mother, grandchildren) ->
+             elt "li"
+               (view_cat mother :: text ": " :: view_list view_cat grandchildren))
+           pravnuki);
+      text " in čez XXX mesecev spet:";
+      elt "ul"
+        (List.map
+           (fun (mother, grandchildren) ->
+             elt "li"
+               (view_cat mother :: text ": " :: view_list view_cat grandchildren))
+           prapravnuki);
       text
         "Da se ne bomo izgubili v imenih, si zapomnimo le številke. Zaenkrat \
          je situacija sledeča:";
