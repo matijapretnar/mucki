@@ -12,6 +12,7 @@ let round_div m n =
   if 2 * o <= n then m / n else (m / n) + 1
 
 let take_percentage n (Percent p) = round_div (n * p) 100
+let inverse_percentage (Percent p) = Percent (100 - p)
 
 type parameters = {
   months_of_gestation : int;
@@ -27,6 +28,8 @@ type model = {
   parameters : parameters;
   years_to_project : int;
   population : generation list;
+  male_names : string list;
+  female_names : string list;
 }
 
 let default_parameters =
@@ -46,6 +49,8 @@ let init : model =
     years_to_project = 7;
     population =
       [ { age = 0; fertile_females = 1; infertile_females = 0; males = 1 } ];
+    male_names = Imena.moska;
+    female_names = Imena.zenska;
   }
 
 let active_females model =
@@ -118,3 +123,50 @@ type msg = GrowPopulation | SetParameters of parameters
 let update (model : model) : msg -> model = function
   | GrowPopulation -> grow_population model
   | SetParameters parameters -> { model with parameters }
+
+type gender = Female | Male
+type cat = { gender : gender; name : string }
+
+let new_male model =
+  match model.male_names with
+  | name :: male_names -> ({ gender = Male; name }, { model with male_names })
+  | [] -> failwith "No names left"
+
+let new_female model =
+  match model.female_names with
+  | name :: female_names ->
+      ({ gender = Female; name }, { model with female_names })
+  | [] -> failwith "No names left"
+
+let rec new_cats new_cat number_of_cats model =
+  match number_of_cats with
+  | 0 -> ([], model)
+  | n ->
+      let cat, model = new_cat model in
+      let cats, model = new_cats new_cat (n - 1) model in
+      (cat :: cats, model)
+
+let parents model =
+  let mother, model = new_male model in
+  let father, model = new_female model in
+  (mother, father, model)
+
+let sort_cats cats =
+  List.sort (fun cat1 cat2 -> compare cat1.name cat2.name) cats
+
+let children model =
+  let total_number = model.parameters.kittens_per_litter in
+  let number_of_females =
+    take_percentage total_number model.parameters.percentage_of_female_kittens
+  in
+  let number_of_males = total_number - number_of_females in
+  let males, model = new_cats new_male number_of_males model in
+  let females, model = new_cats new_female number_of_females model in
+  (males, females, model)
+
+let grandchildren mothers model =
+  List.fold_left
+    (fun (grandchildren, model) mother ->
+      let males, females, model = children model in
+      ((mother, sort_cats (males @ females)) :: grandchildren, model))
+    ([], model) (List.rev mothers)
