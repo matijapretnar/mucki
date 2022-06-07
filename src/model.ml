@@ -123,16 +123,22 @@ let update (model : model) : msg -> model = function
 type gender = Female | Male
 type cat = { gender : gender; name : string }
 
+let pick_name remaining all =
+  match remaining with
+  | name :: names -> (name, names)
+  | [] ->
+      let m = List.length all in
+      let i = Random.int m and j = Random.int m in
+      let name = Printf.sprintf "%s-%s" (List.nth all i) (List.nth all j) in
+      (name, [])
+
 let new_male model =
-  match model.male_names with
-  | name :: male_names -> ({ gender = Male; name }, { model with male_names })
-  | [] -> failwith "No names left"
+  let name, male_names = pick_name model.male_names Imena.moska in
+  ({ gender = Male; name }, { model with male_names })
 
 let new_female model =
-  match model.female_names with
-  | name :: female_names ->
-      ({ gender = Female; name }, { model with female_names })
-  | [] -> failwith "No names left"
+  let name, female_names = pick_name model.female_names Imena.zenska in
+  ({ gender = Female; name }, { model with female_names })
 
 let rec new_cats new_cat number_of_cats model =
   match number_of_cats with

@@ -12,7 +12,11 @@ let dropdown ?default options view (msg : 'a -> Model.msg) =
     else elt "option" [ text (view v) ]
   in
   div
-    ~a:[ class_ "select"; onchange_index (fun i -> msg (List.nth options i)) ]
+    ~a:
+      [
+        class_ "select is-small";
+        onchange_index (fun i -> msg (List.nth options i));
+      ]
     [ elt "select" (List.map view_option options) ]
 
 let int_dropdown ?default from_int to_int msg =
@@ -90,6 +94,14 @@ let view_summary history =
      ]
     @ List.map view_population history)
 
+let view_descendants descendants =
+  elt "ol"
+    (List.map
+       (fun (mother, grandchildren) ->
+         elt "li"
+           (view_cat mother :: text ": " :: view_list view_cat grandchildren))
+       descendants)
+
 let view (model : Model.model) =
   let perioda =
     model.parameters.months_before_mature + model.parameters.months_of_gestation
@@ -122,7 +134,7 @@ let view (model : Model.model) =
       elt "h2" [ view_month 0 ];
       elt "p"
         [
-          text "sta bila 2 potepuha: mačka ";
+          text "Nekoč sta bila 2 potepuha: mačka ";
           view_cat samica;
           text " in njen izbranec ";
           view_cat samec;
@@ -138,11 +150,13 @@ let view (model : Model.model) =
       elt "h2" [ view_month model.parameters.months_of_gestation ];
       elt "p"
         ([
-           text "na svet primijavka ";
+           view_text "Kmalu na svet primijavka%s "
+             (koncnica "" "ta" "jo" "" model.parameters.kittens_per_litter);
            int_dropdown ~default:model.parameters.kittens_per_litter 1 8
              (fun kittens_per_litter ->
                Model.SetParameters { model.parameters with kittens_per_litter });
-           text "muckov, v povprečju ";
+           view_text "muc%s, v povprečju "
+             (koncnica "ek" "ka" "ki" "kov" model.parameters.kittens_per_litter);
            percentage_dropdown
              ~default:model.parameters.percentage_of_female_kittens
              (fun percentage_of_female_kittens ->
@@ -153,11 +167,7 @@ let view (model : Model.model) =
                 (Model.inverse_percentage
                    model.parameters.percentage_of_female_kittens));
          ]
-        @ view_list view_cat (Model.sort_cats (sinovi @ hcere))
-        @ [
-            view_text ". Zdaj jih je že %d."
-              (2 + model.parameters.kittens_per_litter);
-          ]);
+        @ view_list view_cat (Model.sort_cats (sinovi @ hcere)));
       elt "h2" [ view_month perioda ];
       text
         (koncnica "Naslednji " "Naslednja " "Naslednji " "Naslednjih "
@@ -185,39 +195,23 @@ let view (model : Model.model) =
       text " muckov: ";
       elt "span" (view_list view_cat (Model.sort_cats (preziveli @ prezivele)));
       text ", ki pa ne počivajo…";
-      elt "h2" [ text "Čez …" ];
+      elt "h2" [ view_month (perioda + model.parameters.months_of_gestation) ];
       text "Tudi ";
       view_cat samica;
-      text " ne počiva, zato so čez ";
-      view_int model.parameters.months_of_gestation;
-      text " ";
-      text (mesecev model.parameters.months_of_gestation);
-      text " tu spet novi mucki:";
-      elt "ul"
-        (List.map
-           (fun (mother, grandchildren) ->
-             elt "li"
-               (view_cat mother :: text ": " :: view_list view_cat grandchildren))
-           vnuki);
-      view_text " in čez %d mesec%s spet" perioda
+      text " ni počivala, zato so tu spet novi mucki.";
+      view_descendants vnuki;
+      view_text " in čez %d mesec%s spet!" perioda
         (koncnica "" "a" "e" "ev" perioda);
-      elt "ul"
-        (List.map
-           (fun (mother, grandchildren) ->
-             elt "li"
-               (view_cat mother :: text ": " :: view_list view_cat grandchildren))
-           pravnuki);
-      view_text " in čez %d mesec%s spet" perioda
-        (koncnica "" "a" "e" "ev" perioda);
-      elt "ul"
-        (List.map
-           (fun (mother, grandchildren) ->
-             elt "li"
-               (view_cat mother :: text ": " :: view_list view_cat grandchildren))
-           prapravnuki);
-      text
-        "Da se ne bomo izgubili v imenih, si zapomnimo le številke. Zaenkrat \
-         je situacija sledeča:";
+      elt "h2" [ view_month (2 * perioda) ];
+      view_descendants pravnuki;
+      elt "h2" [ view_month (3 * perioda) ];
+      view_descendants prapravnuki;
+      view_text
+        "Da se ne bomo izgubili v imenih, si poglejmo le številke na vsak%s %d \
+         %s. "
+        (koncnica "" "a" "e" "ih" perioda)
+        perioda (mesecev perioda);
+      text "Zaenkrat je situacija sledeča:";
       view_summary (Model.short_history model);
       text "Če nadaljujemo z izračuni do";
       int_dropdown ~default:model.parameters.average_lifespan_of_a_feral_cat 1
