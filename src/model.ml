@@ -22,6 +22,7 @@ type model = {
   population : generation list;
   male_names : string list;
   female_names : string list;
+  month : int;
 }
 
 let default_parameters =
@@ -40,6 +41,7 @@ let init : model =
     population = [ { age = 0; females = 1; males = 1 } ];
     male_names = Imena.moska;
     female_names = Imena.zenska;
+    month = 0;
   }
 
 let active_females model =
@@ -87,11 +89,17 @@ let grow_population model =
   let adults =
     List.filter_map (grow_generation model.parameters) model.population
   in
-  { model with population = newborns :: adults }
+  {
+    model with
+    population = newborns :: adults;
+    month =
+      model.month + model.parameters.months_before_mature
+      + model.parameters.months_of_gestation;
+  }
 
 let rec history model = function
   | 0 -> []
-  | years -> model :: history (grow_population model) (years - 1)
+  | periods -> model :: history (grow_population model) (periods - 1)
 
 let long_history model =
   history model
@@ -104,7 +112,7 @@ let long_history model =
 let short_history model = history model 4
 
 let rest_of_the_history model =
-  long_history model |> List.filteri (fun i _ -> i > 4)
+  long_history model |> List.filteri (fun i _ -> i >= 4)
 
 type msg = GrowPopulation | SetParameters of parameters
 
