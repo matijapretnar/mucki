@@ -23,48 +23,47 @@ let percentage_dropdown ?default msg =
   let options = List.init 101 (fun i -> Model.Percent i) in
   dropdown ?default options string_of_percentage msg
 
-let view_parameters (model : Model.model) =
+let view_parameters (parameters : Model.parameters) =
   div
     [
       view_label "Months of gestation"
-        (int_dropdown ~default:model.months_of_gestation 1 12
+        (int_dropdown ~default:parameters.months_of_gestation 1 12
            (fun months_of_gestation ->
-             Model.SetModel { model with months_of_gestation }));
+             Model.SetParameters { parameters with months_of_gestation }));
       view_label "Months before mature"
-        (int_dropdown ~default:model.months_before_mature 1 12
+        (int_dropdown ~default:parameters.months_before_mature 1 12
            (fun months_before_mature ->
-             Model.SetModel { model with months_before_mature }));
+             Model.SetParameters { parameters with months_before_mature }));
       view_label "Kittens per litter"
-        (int_dropdown ~default:model.kittens_per_litter 1 8
+        (int_dropdown ~default:parameters.kittens_per_litter 1 8
            (fun kittens_per_litter ->
-             Model.SetModel { model with kittens_per_litter }));
+             Model.SetParameters { parameters with kittens_per_litter }));
       view_label "Percentage of female kittens"
-        (percentage_dropdown ~default:model.percentage_of_female_kittens
+        (percentage_dropdown ~default:parameters.percentage_of_female_kittens
            (fun percentage_of_female_kittens ->
-             Model.SetModel { model with percentage_of_female_kittens }));
+             Model.SetParameters
+               { parameters with percentage_of_female_kittens }));
       view_label "Percentage of kittens who survive to sexual maturity"
         (percentage_dropdown
-           ~default:model.percentage_of_kittens_who_survive_to_sexual_maturity
+           ~default:
+             parameters.percentage_of_kittens_who_survive_to_sexual_maturity
            (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
-             Model.SetModel
+             Model.SetParameters
                {
-                 model with
+                 parameters with
                  percentage_of_kittens_who_survive_to_sexual_maturity;
                }));
       view_label "Percentage of fertile sexually mature females"
         (percentage_dropdown
-           ~default:model.percentage_of_fertile_sexually_mature_females
+           ~default:parameters.percentage_of_fertile_sexually_mature_females
            (fun percentage_of_fertile_sexually_mature_females ->
-             Model.SetModel
-               { model with percentage_of_fertile_sexually_mature_females }));
+             Model.SetParameters
+               { parameters with percentage_of_fertile_sexually_mature_females }));
       view_label "Average lifespan of a feral cat"
-        (int_dropdown ~default:model.average_lifespan_of_a_feral_cat 1 20
+        (int_dropdown ~default:parameters.average_lifespan_of_a_feral_cat 1 20
            (fun average_lifespan_of_a_feral_cat ->
-             Model.SetModel { model with average_lifespan_of_a_feral_cat }));
-      view_label "Years to project"
-        (int_dropdown ~default:model.years_to_project 1 20
-           (fun years_to_project ->
-             Model.SetModel { model with years_to_project }));
+             Model.SetParameters
+               { parameters with average_lifespan_of_a_feral_cat }));
     ]
 
 let view_population (model : Model.model) =
@@ -104,10 +103,10 @@ let view (model : Model.model) =
                samec);
           text
             "Mačke so breje med XXX in YYY mesecev, pa recimo, da je AAA breja ";
-          int_dropdown ~default:model.months_of_gestation 1 12
+          int_dropdown ~default:model.parameters.months_of_gestation 1 12
             (fun months_of_gestation ->
-              Model.SetModel { model with months_of_gestation });
-          text (mesecev model.months_of_gestation);
+              Model.SetParameters { model.parameters with months_of_gestation });
+          text (mesecev model.parameters.months_of_gestation);
           text
             "(Če želite, lahko to in druge številke v zgodbi nastavite na \
              svoje vrednosti.)";
@@ -115,31 +114,33 @@ let view (model : Model.model) =
       elt "h2"
         [
           text
-            (Printf.sprintf "Čez %d %s…" model.months_of_gestation
-               (mesecev model.months_of_gestation));
+            (Printf.sprintf "Čez %d %s…" model.parameters.months_of_gestation
+               (mesecev model.parameters.months_of_gestation));
         ];
       elt "p"
         [
           text "na svet primijavka ";
-          int_dropdown ~default:model.kittens_per_litter 1 8
+          int_dropdown ~default:model.parameters.kittens_per_litter 1 8
             (fun kittens_per_litter ->
-              Model.SetModel { model with kittens_per_litter });
+              Model.SetParameters { model.parameters with kittens_per_litter });
           text "muckov: AAA, BBB, CCC, DDD, EEE, FFF.";
           text
-            (Printf.sprintf "Zdaj jih je že %d." (2 + model.kittens_per_litter));
+            (Printf.sprintf "Zdaj jih je že %d."
+               (2 + model.parameters.kittens_per_litter));
         ];
       elt "h2"
         [
           (let months =
-             model.months_of_gestation + model.months_before_mature
+             model.parameters.months_of_gestation
+             + model.parameters.months_before_mature
            in
            text (Printf.sprintf "Čez %d %s…" months (mesecev months)));
         ];
       text "Še ";
-      int_dropdown ~default:model.months_before_mature 1 12
+      int_dropdown ~default:model.parameters.months_before_mature 1 12
         (fun months_before_mature ->
-          Model.SetModel { model with months_before_mature });
-      text (mesecev model.months_before_mature);
+          Model.SetParameters { model.parameters with months_before_mature });
+      text (mesecev model.parameters.months_before_mature);
       text
         " kasneje so tudi mladički pripravljeni na akcijo. no, ne vsi, \
          aktivnih je le %%% samičk. Poleg AAA še ... poelg). Tako se mesecev \
