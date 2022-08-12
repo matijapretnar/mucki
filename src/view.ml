@@ -4,6 +4,7 @@ let view_int n = text (Printf.sprintf "%d" n)
 let string_of_percentage (Model.Percent p) = Printf.sprintf "%d %%" p
 let view_percentage p = text (string_of_percentage p)
 let view_text fmt = Printf.ksprintf text fmt
+let view_year (Model.Year y) = view_int (2021 + y)
 
 let dropdown ?default options view (msg : 'a -> Model.msg) =
   let view_option v =
@@ -55,25 +56,31 @@ let view_generation (generation : Model.generation) =
 let view_population (population : Model.population) =
   elt "ul" (List.map view_generation population)
 
+let rec view_cats cats = List.map (fun cat -> elt "li" [ view_cat cat ]) cats
+
+and view_cat = function
+  | Model.Male { month_born } ->
+      view_text "M : %s" (Model.month_string month_born)
+  | Model.Female { month_born; children } ->
+      div
+        [
+          view_text "F : %s" (Model.month_string month_born);
+          elt "ul" (view_cats children);
+        ]
+
 let view_stage = function
   | Model.Introduction -> elt "h2" [ text "Na začetku" ]
-  | Model.FirstYear { mating_months_left; population } ->
-      div
-        [
-          elt "h2"
-            [
-              view_month (List.hd (mating_months_left @ [ Model.Month 10000 ]));
-            ];
-          view_population population;
-        ]
-  | Model.EndOfYear population ->
-      div [ elt "h2" [ text "In potem" ]; view_population population ]
+  | Model.FirstYear { mating_months_left; cats } ->
+      let title =
+        match mating_months_left with
+        | [] -> text "Ob koncu leta"
+        | mating_month :: _ -> view_month mating_month
+      in
+      div [ elt "h2" [ title ]; elt "ul" (view_cats cats) ]
+  | Model.EndOfYear cats ->
+      div [ elt "h2" [ text "In potem" ]; elt "ul" (view_cats cats) ]
   | Model.FurtherYears { year; population } ->
-      div
-        [
-          elt "h2" [ view_month (Model.add_year year (Model.Month 1)) ];
-          view_population population;
-        ]
+      div [ elt "h2" [ view_year year ]; view_population population ]
 
 let view (model : Model.model) =
   div

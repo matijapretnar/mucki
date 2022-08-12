@@ -13,6 +13,9 @@ let next_year (Year y) = Year (succ y)
 
 type month = Month of int
 
+let add_month (Month m1) (Month m2) = Month (m1 + m2)
+let add_year (Year y) (Month m) = Month (m + (12 * y))
+
 let month_string (Month m) =
   let month_names =
     [
@@ -30,18 +33,11 @@ let month_string (Month m) =
       "december";
     ]
   in
-  Printf.sprintf "%s %d" (List.nth month_names (m mod 12)) (2021 + (m / 12))
+  Printf.sprintf "%s %d"
+    (List.nth month_names ((m + 12) mod 12))
+    (2020 + ((m + 12) / 12))
 
 type litters_per_year = One | Two | Three
-type generation = { month_born : month; females : int; males : int }
-
-let first_generation = { month_born = Month 0; females = 1; males = 1 }
-
-type population = generation list
-
-let initial_population = [ first_generation ]
-let add_month (Month m1) (Month m2) = Month (m1 + m2)
-let add_year (Year y) (Month m) = Month (m + (12 * y))
 
 type parameters = {
   litters_per_year : litters_per_year;
@@ -64,10 +60,51 @@ let default_parameters =
     percentage_of_kittens_who_survive_to_sexual_maturity = Percent 50;
   }
 
+type cat =
+  | Male of { month_born : month }
+  | Female of { month_born : month; children : cats }
+
+and cats = cat list
+
+type generation = { month_born : month; females : int; males : int }
+
+let is_sexually_active parameters mating_month month_born =
+  add_month month_born parameters.months_before_mature <= mating_month
+  && mating_month <= add_month month_born parameters.months_of_lifespan
+
+type population = generation list
+
+let cat_population cats =
+  let counter = Hashtbl.create 64 in
+  let update month_born f =
+    let current =
+      Hashtbl.find_opt counter month_born |> Option.value ~default:(0, 0)
+    in
+    Hashtbl.replace counter month_born (f current)
+  in
+  let rec traverse_cats cats = List.iter traverse_cat cats
+  and traverse_cat = function
+    | Male { month_born } ->
+        update month_born (fun (females, males) -> (females, succ males))
+    | Female { month_born; children } ->
+        update month_born (fun (females, males) -> (succ females, males));
+        traverse_cats children
+  in
+  traverse_cats cats;
+  counter |> Hashtbl.to_seq |> List.of_seq
+  |> List.map (fun (month_born, (females, males)) ->
+         { month_born; females; males })
+
+let initial_cats =
+  [
+    Male { month_born = Month (-11) };
+    Female { month_born = Month (-11); children = [] };
+  ]
+
 type stage =
   | Introduction
-  | FirstYear of { mating_months_left : month list; population : population }
-  | EndOfYear of population
+  | FirstYear of { mating_months_left : month list; cats : cats }
+  | EndOfYear of cats
   | FurtherYears of { year : year; population : population }
 
 let mating_months = function
@@ -75,13 +112,10 @@ let mating_months = function
   | Two -> [ Month 1; Month 8 ]
   | Three -> [ Month 1; Month 5; Month 8 ]
 
-let is_sexually_active parameters mating_month { month_born; _ } =
-  add_month month_born parameters.months_before_mature <= mating_month
-  && mating_month <= add_month month_born parameters.months_of_lifespan
-
-let active_females parameters mating_month population =
+let active_females parameters mating_month (population : population) =
   population
-  |> List.filter (is_sexually_active parameters mating_month)
+  |> List.filter (fun generation ->
+         is_sexually_active parameters mating_month generation.month_born)
   |> List.map (fun generation -> generation.females)
   |> List.fold_left ( + ) 0
 
@@ -102,6 +136,30 @@ let newborn_generation parameters mating_month population =
   let month_born = add_month mating_month parameters.months_of_gestation in
   { month_born; females; males }
 
+let rec mate_cats parameters mating_month population =
+  List.map (mate_cat parameters mating_month) population
+
+and mate_cat parameters mating_month = function
+  | Female { month_born; children } ->
+      let new_children =
+        if is_sexually_active parameters mating_month month_born then
+          let new_kittens =
+            newborn_generation parameters mating_month
+              [ ({ month_born; females = 1; males = 0 } : generation) ]
+          in
+          List.init new_kittens.males (fun _ ->
+              Male { month_born = new_kittens.month_born })
+          @ List.init new_kittens.males (fun _ ->
+                Female { month_born = new_kittens.month_born; children = [] })
+        else []
+      in
+      Female
+        {
+          month_born;
+          children = new_children @ mate_cats parameters mating_month children;
+        }
+  | Male _ as cat -> cat
+
 let population_after_mating parameters mating_month population =
   let newborns = newborn_generation parameters mating_month population in
   newborns :: population
@@ -119,18 +177,15 @@ let next_stage parameters = function
       FirstYear
         {
           mating_months_left = mating_months parameters.litters_per_year;
-          population = initial_population;
+          cats = initial_cats;
         }
-  | FirstYear { mating_months_left = []; population } -> EndOfYear population
-  | FirstYear
-      { mating_months_left = mating_month :: mating_months_left; population } ->
+  | FirstYear { mating_months_left = []; cats } -> EndOfYear cats
+  | FirstYear { mating_months_left = mating_month :: mating_months_left; cats }
+    ->
       FirstYear
-        {
-          mating_months_left;
-          population =
-            population_after_mating parameters mating_month population;
-        }
-  | EndOfYear population -> FurtherYears { year = Year 1; population }
+        { mating_months_left; cats = mate_cats parameters mating_month cats }
+  | EndOfYear cats ->
+      FurtherYears { year = Year 1; population = cat_population cats }
   | FurtherYears { year; population } ->
       FurtherYears
         {
