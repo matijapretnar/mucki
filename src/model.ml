@@ -1,11 +1,23 @@
-type percentage = Percent of int
+module Percentage : sig
+  type t
 
-let round_div m n =
-  let o = m mod n in
-  if 2 * o <= n then m / n else (m / n) + 1
+  val of_int : int -> t
+  val take_percentage : int -> t -> int
+  val inverse : t -> t
+  val to_string : t -> string
+end = struct
+  type t = Percent of int
 
-let take_percentage n (Percent p) = round_div (n * p) 100
-let inverse_percentage (Percent p) = Percent (100 - p)
+  let of_int p = Percent p
+
+  let round_div m n =
+    let o = m mod n in
+    if 2 * o <= n then m / n else (m / n) + 1
+
+  let take_percentage n (Percent p) = round_div (n * p) 100
+  let inverse (Percent p) = Percent (100 - p)
+  let to_string (Percent p) = Printf.sprintf "%d %%" p
+end
 
 type year = Year of int
 
@@ -45,8 +57,8 @@ type parameters = {
   months_before_mature : month;
   months_of_lifespan : month;
   kittens_per_litter : int;
-  percentage_of_female_kittens : percentage;
-  percentage_of_kittens_who_survive_to_sexual_maturity : percentage;
+  percentage_of_female_kittens : Percentage.t;
+  percentage_of_kittens_who_survive_to_sexual_maturity : Percentage.t;
 }
 
 let default_parameters =
@@ -56,8 +68,8 @@ let default_parameters =
     months_before_mature = Month 4;
     months_of_lifespan = Month 48;
     kittens_per_litter = 4;
-    percentage_of_female_kittens = Percent 50;
-    percentage_of_kittens_who_survive_to_sexual_maturity = Percent 50;
+    percentage_of_female_kittens = Percentage.of_int 50;
+    percentage_of_kittens_who_survive_to_sexual_maturity = Percentage.of_int 50;
   }
 
 type cat =
@@ -126,11 +138,11 @@ let kittens_born parameters mating_month population =
 let newborn_generation parameters mating_month population =
   let kittens = kittens_born parameters mating_month population in
   let survivors =
-    take_percentage kittens
+    Percentage.take_percentage kittens
       parameters.percentage_of_kittens_who_survive_to_sexual_maturity
   in
   let females =
-    take_percentage survivors parameters.percentage_of_female_kittens
+    Percentage.take_percentage survivors parameters.percentage_of_female_kittens
   in
   let males = survivors - females in
   let month_born = add_month mating_month parameters.months_of_gestation in

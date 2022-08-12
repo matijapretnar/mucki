@@ -1,8 +1,7 @@
 open Vdom
 
 let view_int n = text (Printf.sprintf "%d" n)
-let string_of_percentage (Model.Percent p) = Printf.sprintf "%d %%" p
-let view_percentage p = text (string_of_percentage p)
+let view_percentage p = text (Model.Percentage.to_string p)
 let view_text fmt = Printf.ksprintf text fmt
 let view_year (Model.Year y) = view_int (2021 + y)
 
@@ -25,8 +24,8 @@ let int_dropdown ?default from_int to_int msg =
   dropdown ?default options string_of_int msg
 
 let percentage_dropdown ?default msg =
-  let options = List.init 11 (fun i -> Model.Percent (10 * i)) in
-  dropdown ?default options string_of_percentage msg
+  let options = List.init 11 (fun i -> Model.Percentage.of_int (10 * i)) in
+  dropdown ?default options Model.Percentage.to_string msg
 
 let view_month month = text (Model.month_string month)
 
