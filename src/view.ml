@@ -55,20 +55,46 @@ let view_generation (generation : Model.generation) =
 let view_population (population : Model.population) =
   elt "ul" (List.map view_generation population)
 
+let view_cat_name =
+  let view_name color name _month_born =
+    elt "span" ~a:[ style "color" color ] [ text name ]
+  in
+  function
+  | Model.Male { name; month_born } -> view_name "blue" name month_born
+  | Model.Female { name; month_born; _ } -> view_name "red" name month_born
+
 let rec view_cats cats = List.map (fun cat -> elt "li" [ view_cat cat ]) cats
 
 and view_cat = function
-  | Model.Male { month_born } ->
-      view_text "M : %s" (Model.month_string month_born)
-  | Model.Female { month_born; children } ->
+  | Model.Male _ as cat -> view_cat_name cat
+  | Model.Female { children; _ } as cat ->
+      elt "span" [ view_cat_name cat; elt "ul" (view_cats children) ]
+
+let view_stage parameters = function
+  | Model.Introduction { female; male } ->
       div
         [
-          view_text "F : %s" (Model.month_string month_born);
-          elt "ul" (view_cats children);
+          elt "h2" [ text "Na začetku" ];
+          elt "p"
+            [
+              text "Nekoč sta bila 2 potepuha: mačka ";
+              view_cat_name female;
+              text " in njen izbranec ";
+              view_cat_name male;
+              text ". Mačke imajo mladiče ";
+              dropdown ~default:Model.One
+                [ Model.One; Model.Two; Model.Three ]
+                (function
+                  | Model.One -> "enkrat"
+                  | Model.Two -> "dvakrat"
+                  | Model.Three -> "trikrat")
+                (fun litters_per_year ->
+                  Model.SetParameters { parameters with litters_per_year });
+              text
+                " na leto. (Če želite, lahko to in druge številke v zgodbi \
+                 nastavite na svoje vrednosti.)";
+            ];
         ]
-
-let view_stage = function
-  | Model.Introduction -> elt "h2" [ text "Na začetku" ]
   | Model.FirstYear { mating_months_left; cats } ->
       let title =
         match mating_months_left with
@@ -84,11 +110,10 @@ let view_stage = function
 let view (model : Model.model) =
   div
     ~a:[ class_ "content" ]
-    (Model.history model.parameters model.stage 10 |> List.map view_stage)
+    (Model.history model.parameters model.stage 10
+    |> List.map (view_stage model.parameters))
 
 (* let view_cat (cat : Model.cat) =
-     let color = match cat.gender with Male -> "blue" | Female -> "red" in
-     elt "span" ~a:[ style "color" color ] [ text cat.name ]
 
 
    let view_summary history =
@@ -157,22 +182,7 @@ let view (model : Model.model) =
      div
        ~a:[ class_ "content" ]
        [
-         elt "h2" [ view_month 0 ];
-         elt "p"
-           [
-             text "Nekoč sta bila 2 potepuha: mačka ";
-             view_cat samica;
-             text " in njen izbranec ";
-             view_cat samec;
-             text ". Mačke so breje okoli ";
-             int_dropdown ~default:model.parameters.months_of_gestation 1 12
-               (fun months_of_gestation ->
-                 Model.SetParameters { model.parameters with months_of_gestation });
-             text (mesecev model.parameters.months_of_gestation);
-             text
-               ". (Če želite, lahko to in druge številke v zgodbi nastavite na \
-                svoje vrednosti.)";
-           ];
+
          elt "h2" [ view_month model.parameters.months_of_gestation ];
          elt "p"
            ([
