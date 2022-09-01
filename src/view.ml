@@ -49,26 +49,34 @@ let view_generation (generation : Model.generation) =
     [
       view_text "%s: %d M, %d Ž"
         (Model.month_string generation.month_born)
-        generation.males generation.females;
+        generation.surviving_males generation.surviving_females;
     ]
 
 let view_population (population : Model.population) =
   elt "ul" (List.map view_generation population)
 
-let view_cat_name =
-  let view_name color name _month_born =
-    elt "span" ~a:[ style "color" color ] [ text name ]
+let view_cat_name ?(show_still_alive = false) (cat : Model.cat) =
+  let color =
+    match cat.gender with Model.Male -> "blue" | Model.Female _ -> "red"
   in
-  function
-  | Model.Male { name; month_born } -> view_name "blue" name month_born
-  | Model.Female { name; month_born; _ } -> view_name "red" name month_born
+  let a = [ style "color" color ] in
+  let a =
+    if cat.alive || show_still_alive then a
+    else style "text-decoration" "line-through" :: a
+  in
+  elt "span" ~a [ text cat.name ]
 
-let rec view_cats cats = List.map (fun cat -> elt "li" [ view_cat cat ]) cats
+let rec view_cats ?show_still_alive cats =
+  cats
+  |> List.sort (fun cat1 cat2 -> compare cat1.Model.name cat2.name)
+  |> List.map (fun cat -> elt "li" [ view_cat ?show_still_alive cat ])
 
-and view_cat = function
-  | Model.Male _ as cat -> view_cat_name cat
-  | Model.Female { children; _ } as cat ->
-      elt "span" [ view_cat_name cat; elt "ul" (view_cats children) ]
+and view_cat ?show_still_alive (cat : Model.cat) =
+  match cat.gender with
+  | Model.Male -> view_cat_name ?show_still_alive cat
+  | Model.Female children ->
+      elt "span"
+        [ view_cat_name ?show_still_alive cat; elt "ul" (view_cats children) ]
 
 let view_stage parameters = function
   | Model.Introduction { female; male } ->
@@ -82,7 +90,7 @@ let view_stage parameters = function
               text " in njen izbranec ";
               view_cat_name male;
               text ". Mačke imajo mladiče ";
-              dropdown ~default:Model.One
+              dropdown ~default:parameters.Model.litters_per_year
                 [ Model.One; Model.Two; Model.Three ]
                 (function
                   | Model.One -> "enkrat"
@@ -95,17 +103,63 @@ let view_stage parameters = function
                  nastavite na svoje vrednosti.)";
             ];
         ]
-  | Model.FirstYear { mating_months_left; cats } ->
-      let title =
-        match mating_months_left with
-        | [] -> text "Ob koncu leta"
-        | mating_month :: _ -> view_month mating_month
-      in
-      div [ elt "h2" [ title ]; elt "ul" (view_cats cats) ]
-  | Model.EndOfYear cats ->
-      div [ elt "h2" [ text "In potem" ]; elt "ul" (view_cats cats) ]
-  | Model.FurtherYears { year; population } ->
-      div [ elt "h2" [ view_year year ]; view_population population ]
+  | Model.FirstYearLitter { first; mating_month; cats; _ } when first ->
+      div
+        [
+          elt "h2" [ view_month mating_month ];
+          elt "p"
+            ([
+               view_text "Kmalu na svet primijavka%s "
+                 (koncnica "" "ta" "jo" "" parameters.kittens_per_litter);
+               int_dropdown ~default:parameters.kittens_per_litter 1 8
+                 (fun kittens_per_litter ->
+                   Model.SetParameters { parameters with kittens_per_litter });
+               view_text "muc%s."
+                 (koncnica "ek" "ka" "ki" "kov" parameters.kittens_per_litter);
+             ]
+            @ view_list (view_cat ~show_still_alive:true) cats);
+          text
+            (koncnica "Naslednji " "Naslednja " "Naslednji " "Naslednjih "
+               parameters.months_before_mature);
+          int_dropdown ~default:parameters.months_before_mature 1 12
+            (fun months_before_mature ->
+              Model.SetParameters { parameters with months_before_mature });
+          text
+            (koncnica "mesec" "meseca" "meseci" "mesecev"
+               parameters.months_before_mature);
+          text " odraščanja ";
+          text
+            (koncnica "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
+               parameters.months_before_mature);
+          text ", saj odraslost doživi ";
+          percentage_dropdown
+            ~default:
+              parameters.percentage_of_kittens_who_survive_to_sexual_maturity
+            (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
+              Model.SetParameters
+                {
+                  parameters with
+                  percentage_of_kittens_who_survive_to_sexual_maturity;
+                });
+          text " muckov: ";
+          elt "span" (view_list view_cat cats);
+          text ", ki pa ne počivajo…";
+        ]
+  | Model.FirstYearLitter { cats; mating_month; _ } ->
+      div
+        [
+          elt "h2" [ text "Ostala legla: "; view_month mating_month ];
+          elt "ul" (view_cats cats);
+        ]
+  | Model.EndOfFirstYear cats ->
+      div
+        [ elt "h2" [ text "Na koncu prvega leta" ]; elt "ul" (view_cats cats) ]
+  | Model.StartOfOtherYears { year; population } ->
+      div
+        [
+          elt "h2" [ text "Na začetku leta "; view_year year ];
+          view_population population;
+        ]
 
 let view (model : Model.model) =
   div
@@ -155,23 +209,23 @@ let view (model : Model.model) =
 
    let view (model : Model.model) =
      let perioda =
-       model.parameters.months_before_mature + model.parameters.months_of_gestation
+       parameters.months_before_mature + parameters.months_of_gestation
      in
      let samec, samica, model = Model.parents model in
      let sinovi, hcere, model = Model.children model in
-     let preziveli = Model.survivors model.parameters sinovi
-     and prezivele = Model.survivors model.parameters hcere in
+     let preziveli = Model.survivors parameters sinovi
+     and prezivele = Model.survivors parameters hcere in
      let vnuki, vnukinje, model =
        Model.grandchildren (samica :: Model.sort_cats prezivele) model
      in
-     let prezivele_vnukinje = Model.survivors model.parameters vnukinje in
+     let prezivele_vnukinje = Model.survivors parameters vnukinje in
      let pravnuki, pravnukinje, model =
        Model.grandchildren
          ((samica :: Model.sort_cats prezivele)
          @ Model.sort_cats prezivele_vnukinje)
          model
      in
-     let prezivele_pravnukinje = Model.survivors model.parameters pravnukinje in
+     let prezivele_pravnukinje = Model.survivors parameters pravnukinje in
      let prapravnuki, _, _ =
        Model.grandchildren
          ((samica :: Model.sort_cats prezivele)
@@ -182,56 +236,7 @@ let view (model : Model.model) =
      div
        ~a:[ class_ "content" ]
        [
-
-         elt "h2" [ view_month model.parameters.months_of_gestation ];
-         elt "p"
-           ([
-              view_text "Kmalu na svet primijavka%s "
-                (koncnica "" "ta" "jo" "" model.parameters.kittens_per_litter);
-              int_dropdown ~default:model.parameters.kittens_per_litter 1 8
-                (fun kittens_per_litter ->
-                  Model.SetParameters { model.parameters with kittens_per_litter });
-              view_text "muc%s, v povprečju "
-                (koncnica "ek" "ka" "ki" "kov" model.parameters.kittens_per_litter);
-              percentage_dropdown
-                ~default:model.parameters.percentage_of_female_kittens
-                (fun percentage_of_female_kittens ->
-                  Model.SetParameters
-                    { model.parameters with percentage_of_female_kittens });
-              view_text " samičk in %s samčkov: "
-                (string_of_percentage
-                   (Model.inverse_percentage
-                      model.parameters.percentage_of_female_kittens));
-            ]
-           @ view_list view_cat (Model.sort_cats (sinovi @ hcere)));
-         elt "h2" [ view_month perioda ];
-         text
-           (koncnica "Naslednji " "Naslednja " "Naslednji " "Naslednjih "
-              model.parameters.months_before_mature);
-         int_dropdown ~default:model.parameters.months_before_mature 1 12
-           (fun months_before_mature ->
-             Model.SetParameters { model.parameters with months_before_mature });
-         text
-           (koncnica "mesec" "meseca" "meseci" "mesecev"
-              model.parameters.months_before_mature);
-         text " odraščanja ";
-         text
-           (koncnica "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
-              model.parameters.months_before_mature);
-         text ", saj odraslost doživi ";
-         percentage_dropdown
-           ~default:
-             model.parameters.percentage_of_kittens_who_survive_to_sexual_maturity
-           (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
-             Model.SetParameters
-               {
-                 model.parameters with
-                 percentage_of_kittens_who_survive_to_sexual_maturity;
-               });
-         text " muckov: ";
-         elt "span" (view_list view_cat (Model.sort_cats (preziveli @ prezivele)));
-         text ", ki pa ne počivajo…";
-         elt "h2" [ view_month (perioda + model.parameters.months_of_gestation) ];
+         elt "h2" [ view_month (perioda + parameters.months_of_gestation) ];
          text "Tudi ";
          view_cat samica;
          text " ni počivala, zato so tu spet novi mucki.";
@@ -250,10 +255,10 @@ let view (model : Model.model) =
          text "Zaenkrat je situacija sledeča:";
          view_summary (Model.short_history model);
          text "Če nadaljujemo z izračuni do";
-         int_dropdown ~default:model.parameters.average_lifespan_of_a_feral_cat 1
+         int_dropdown ~default:parameters.average_lifespan_of_a_feral_cat 1
            20 (fun average_lifespan_of_a_feral_cat ->
              Model.SetParameters
-               { model.parameters with average_lifespan_of_a_feral_cat });
+               { parameters with average_lifespan_of_a_feral_cat });
          text " let, ko naša ";
          view_cat samica;
          text " ostari, dobimo sledeče številke:";
