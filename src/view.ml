@@ -44,12 +44,24 @@ let rec view_list view_element = function
   | [ x; y ] -> [ view_element x; text " in "; view_element y ]
   | x :: xs -> view_element x :: text ", " :: view_list view_element xs
 
+let view_rich_string ~color ~strikethrough str =
+  let a = [ style "color" color ] in
+  let a =
+    if strikethrough then style "text-decoration" "line-through" :: a else a
+  in
+  elt "span" ~a [ text str ]
+
 let view_generation (generation : Model.generation) =
   elt "li"
     [
-      view_text "%s: %d M, %d Ž"
-        (Model.month_string generation.month_born)
-        generation.surviving_males generation.surviving_females;
+      view_rich_string ~color:"red" ~strikethrough:false
+        (string_of_int generation.surviving_females);
+      view_rich_string ~color:"red" ~strikethrough:true
+        (string_of_int generation.nonsurviving_females);
+      view_rich_string ~color:"blue" ~strikethrough:false
+        (string_of_int generation.surviving_males);
+      view_rich_string ~color:"blue" ~strikethrough:true
+        (string_of_int generation.nonsurviving_males);
     ]
 
 let view_population (population : Model.population) =
@@ -58,13 +70,8 @@ let view_population (population : Model.population) =
 let view_cat_name ?(show_still_alive = false) (cat : Model.cat) =
   let color =
     match cat.gender with Model.Male -> "blue" | Model.Female _ -> "red"
-  in
-  let a = [ style "color" color ] in
-  let a =
-    if cat.alive || show_still_alive then a
-    else style "text-decoration" "line-through" :: a
-  in
-  elt "span" ~a [ text cat.name ]
+  and alive = cat.alive || show_still_alive in
+  view_rich_string ~color ~strikethrough:(not alive) cat.name
 
 let rec view_cats ?show_still_alive cats =
   cats
