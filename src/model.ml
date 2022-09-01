@@ -73,9 +73,9 @@ let default_parameters =
   }
 
 let mating_months = function
-  | One -> (Month 1, [])
-  | Two -> (Month 1, [ Month 8 ])
-  | Three -> (Month 1, [ Month 5; Month 8 ])
+  | One -> [ Month 1 ]
+  | Two -> [ Month 1; Month 8 ]
+  | Three -> [ Month 1; Month 5; Month 8 ]
 
 let is_sexually_active parameters mating_month month_born =
   increase_month month_born parameters.months_before_mature <= mating_month
@@ -141,7 +141,6 @@ let population_after_mating parameters mating_month population =
 
 let population_after_year parameters year population =
   mating_months parameters.litters_per_year
-  |> (fun (month, months) -> month :: months)
   |> List.map (add_year year)
   |> List.fold_left
        (fun population mating_month ->
@@ -266,17 +265,17 @@ type stage =
   | StartOfOtherYears of { year : year; population : population }
 
 let next_stage parameters = function
-  | Introduction { female; male } ->
-      let mating_month, mating_months_left =
-        mating_months parameters.litters_per_year
-      in
-      FirstYearLitter
-        {
-          first = true;
-          mating_month;
-          mating_months_left;
-          cats = mate_cats parameters mating_month [ female; male ];
-        }
+  | Introduction { female; male } -> (
+      match mating_months parameters.litters_per_year with
+      | [] -> assert false
+      | mating_month :: mating_months_left ->
+          FirstYearLitter
+            {
+              first = true;
+              mating_month;
+              mating_months_left;
+              cats = mate_cats parameters mating_month [ female; male ];
+            })
   | FirstYearLitter { mating_months_left = []; cats; _ } -> EndOfFirstYear cats
   | FirstYearLitter
       { mating_months_left = mating_month :: mating_months_left; cats; _ } ->
