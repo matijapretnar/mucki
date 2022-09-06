@@ -51,27 +51,36 @@ let view_rich_string ~color ~strikethrough str =
   in
   elt "span" ~a [ text str ]
 
-let view_generation (generation : Model.generation) =
-  elt "li"
+let male_image = "😼"
+let female_image = "😻"
+
+let view_count (count : Model.count) =
+  let cats =
+    List.init count.surviving_females (fun _ -> female_image)
+    @ List.init count.surviving_males (fun _ -> male_image)
+  in
+  elt "span"
+    (* ~a:[ style "letter-spacing" "-0.4em" ] *)
     [
-      view_rich_string ~color:"red" ~strikethrough:false
-        (string_of_int generation.surviving_females);
-      view_rich_string ~color:"red" ~strikethrough:true
-        (string_of_int generation.nonsurviving_females);
-      view_rich_string ~color:"blue" ~strikethrough:false
-        (string_of_int generation.surviving_males);
-      view_rich_string ~color:"blue" ~strikethrough:true
-        (string_of_int generation.nonsurviving_males);
+      view_text "%d" (count.surviving_females + count.surviving_males);
+      text (String.concat "" (Imena.premesaj cats));
     ]
 
+let view_generation (generation : Model.generation) =
+  view_count generation.count
+
 let view_population (population : Model.population) =
-  elt "ul" (List.map view_generation population)
+  view_count (Model.count_size population)
 
 let view_cat_name ?(show_still_alive = false) (cat : Model.cat) =
-  let color =
-    match cat.gender with Model.Male -> "blue" | Model.Female _ -> "red"
-  and alive = cat.alive || show_still_alive in
-  view_rich_string ~color ~strikethrough:(not alive) cat.name
+  let alive = cat.alive || show_still_alive in
+  let color, emoji =
+    match cat.gender with
+    | Model.Male when alive -> ("blue", male_image)
+    | Model.Female _ when alive -> ("red", female_image)
+    | _ -> ("gray", "☠️")
+  in
+  view_rich_string ~color ~strikethrough:(not alive) (emoji ^ cat.name)
 
 let rec view_cats ?show_still_alive cats =
   cats
@@ -110,57 +119,73 @@ let view_stage parameters = function
                  nastavite na svoje vrednosti.)";
             ];
         ]
-  | Model.FirstYearLitter { first; mating_month; cats; _ } when first ->
+  | Model.FirstLitter { mating_month; children; _ } ->
       div
         [
-          elt "h2" [ view_month mating_month ];
+          elt "h2"
+            [
+              view_month
+                (Model.increase_month mating_month
+                   parameters.months_of_gestation);
+            ];
           elt "p"
             ([
-               view_text "Kmalu na svet primijavka%s "
+               view_text "Po ";
+               text (string_of_int parameters.months_of_gestation);
+               text
+                 (koncnica " mesecu" " mesecih" " mesecih" " mesecih"
+                    parameters.months_of_gestation);
+               view_text " na svet primijavka%s "
                  (koncnica "" "ta" "jo" "" parameters.kittens_per_litter);
                int_dropdown ~default:parameters.kittens_per_litter 1 8
                  (fun kittens_per_litter ->
                    Model.SetParameters { parameters with kittens_per_litter });
-               view_text "muc%s."
+               view_text "muc%s:"
                  (koncnica "ek" "ka" "ki" "kov" parameters.kittens_per_litter);
              ]
-            @ view_list (view_cat ~show_still_alive:true) cats);
-          text
-            (koncnica "Naslednji " "Naslednja " "Naslednji " "Naslednjih "
-               parameters.months_before_mature);
-          int_dropdown ~default:parameters.months_before_mature 1 12
-            (fun months_before_mature ->
-              Model.SetParameters { parameters with months_before_mature });
-          text
-            (koncnica "mesec" "meseca" "meseci" "mesecev"
-               parameters.months_before_mature);
-          text " odraščanja ";
-          text
-            (koncnica "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
-               parameters.months_before_mature);
-          text ", saj odraslost doživi ";
-          percentage_dropdown
-            ~default:
-              parameters.percentage_of_kittens_who_survive_to_sexual_maturity
-            (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
-              Model.SetParameters
-                {
-                  parameters with
-                  percentage_of_kittens_who_survive_to_sexual_maturity;
-                });
-          text " muckov: ";
-          elt "span" (view_list view_cat cats);
-          text ", ki pa ne počivajo…";
+            @ view_list (view_cat_name ~show_still_alive:true) children
+            @ [
+                text ". ";
+                view_text "Naslednj%s %d mesec%s odraščanja %s, %s "
+                  (koncnica "i" "a" "i" "ih" parameters.months_before_mature)
+                  parameters.months_before_mature
+                  (koncnica "" "a" "i" "ev" parameters.months_before_mature)
+                  (koncnica "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
+                     parameters.months_before_mature)
+                  (if
+                   parameters
+                     .percentage_of_kittens_who_survive_to_sexual_maturity
+                   = Model.Percentage.of_int 100
+                  then "a odraslost doživi"
+                  else "zato odraslost doživi le");
+                percentage_dropdown
+                  ~default:
+                    parameters
+                      .percentage_of_kittens_who_survive_to_sexual_maturity
+                  (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
+                    Model.SetParameters
+                      {
+                        parameters with
+                        percentage_of_kittens_who_survive_to_sexual_maturity;
+                      });
+                text
+                  "mladičkov. Poglejmo si, kakšno je videti družinsko drevo po \
+                   vsakem leglu.";
+              ]);
         ]
   | Model.FirstYearLitter { cats; mating_month; _ } ->
       div
         [
-          elt "h2" [ text "Ostala legla: "; view_month mating_month ];
+          elt "h2"
+            [
+              view_month
+                (Model.increase_month mating_month
+                   parameters.months_of_gestation);
+            ];
           elt "ul" (view_cats cats);
         ]
-  | Model.EndOfFirstYear cats ->
-      div
-        [ elt "h2" [ text "Na koncu prvega leta" ]; elt "ul" (view_cats cats) ]
+  | Model.EndOfFirstYear population ->
+      div [ elt "h2" [ text "Če povzamemo" ]; view_population population ]
   | Model.StartOfOtherYears { year; population } ->
       div
         [

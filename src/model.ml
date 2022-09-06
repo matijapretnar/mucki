@@ -14,7 +14,15 @@ end = struct
     let o = m mod n in
     if 2 * o <= n then m / n else (m / n) + 1
 
-  let take_percentage n (Percent p) = round_div (n * p) 100
+  let take_percentage n (Percent p) =
+    (* let rec sample_bernoulli acc = function
+         | 0 -> acc
+         | n ->
+             if Random.int 101 < p then sample_bernoulli (succ acc) (pred n)
+             else sample_bernoulli acc (pred n)
+       in *)
+    round_div (n * p) 100
+
   let inverse (Percent p) = Percent (100 - p)
   let to_string (Percent p) = Printf.sprintf "%d %%" p
 end
@@ -81,21 +89,21 @@ let is_sexually_active parameters mating_month month_born =
   increase_month month_born parameters.months_before_mature <= mating_month
   && mating_month <= increase_month month_born parameters.months_of_lifespan
 
-type generation = {
-  month_born : month;
+type count = {
   surviving_females : int;
   nonsurviving_females : int;
   surviving_males : int;
   nonsurviving_males : int;
 }
 
+type generation = { month_born : month; count : count }
 type population = generation list
 
 let active_females parameters mating_month (population : population) =
   population
   |> List.filter (fun generation ->
          is_sexually_active parameters mating_month generation.month_born)
-  |> List.map (fun generation -> generation.surviving_females)
+  |> List.map (fun generation -> generation.count.surviving_females)
   |> List.fold_left ( + ) 0
 
 let kittens_born parameters mating_month population =
@@ -120,20 +128,33 @@ let newborn_generation parameters mating_month population =
   let month_born = increase_month mating_month parameters.months_of_gestation in
   {
     month_born;
-    surviving_females;
-    nonsurviving_females;
-    surviving_males;
-    nonsurviving_males;
+    count =
+      {
+        surviving_females;
+        nonsurviving_females;
+        surviving_males;
+        nonsurviving_males;
+      };
   }
 
-let empty_generation month_born =
+let empty_count =
   {
-    month_born;
     surviving_females = 0;
     nonsurviving_females = 0;
     surviving_males = 0;
     nonsurviving_males = 0;
   }
+
+let add_count count1 count2 =
+  {
+    surviving_females = count1.surviving_females + count2.surviving_females;
+    nonsurviving_females =
+      count1.nonsurviving_females + count2.nonsurviving_females;
+    surviving_males = count1.surviving_males + count2.surviving_males;
+    nonsurviving_males = count1.nonsurviving_males + count2.nonsurviving_males;
+  }
+
+let empty_generation month_born = { month_born; count = empty_count }
 
 let population_after_mating parameters mating_month population =
   let newborns = newborn_generation parameters mating_month population in
@@ -150,6 +171,17 @@ let population_after_year parameters year population =
 type cat = { name : string; month_born : month; alive : bool; gender : gender }
 and gender = Male | Female of cats
 and cats = cat list
+
+let rec filter_cat p cat =
+  {
+    cat with
+    gender =
+      (match cat.gender with
+      | Male -> Male
+      | Female children -> Female (filter_cats p children));
+  }
+
+and filter_cats p cats = cats |> List.filter p |> List.map (filter_cat p)
 
 let female_names = ref Imena.zenska
 let male_names = ref Imena.moska
@@ -176,8 +208,7 @@ let cat_population cats =
   let counter = Hashtbl.create 64 in
   let update month_born f =
     let current =
-      Hashtbl.find_opt counter month_born
-      |> Option.value ~default:(empty_generation month_born)
+      Hashtbl.find_opt counter month_born |> Option.value ~default:empty_count
     in
     Hashtbl.replace counter month_born (f current)
   in
@@ -185,38 +216,37 @@ let cat_population cats =
   and traverse_cat cat =
     match cat.gender with
     | Male when cat.alive ->
-        update cat.month_born (fun generation ->
-            {
-              generation with
-              surviving_males = succ generation.surviving_males;
-            })
+        update cat.month_born (fun count ->
+            { count with surviving_males = succ count.surviving_males })
     | Male ->
-        update cat.month_born (fun generation ->
-            {
-              generation with
-              nonsurviving_males = succ generation.nonsurviving_males;
-            })
+        update cat.month_born (fun count ->
+            { count with nonsurviving_males = succ count.nonsurviving_males })
     | Female children when cat.alive ->
-        update cat.month_born (fun generation ->
-            {
-              generation with
-              surviving_females = succ generation.surviving_females;
-            });
+        update cat.month_born (fun count ->
+            { count with surviving_females = succ count.surviving_females });
         traverse_cats children
     | Female children ->
-        update cat.month_born (fun generation ->
+        update cat.month_born (fun count ->
             {
-              generation with
-              surviving_females = succ generation.nonsurviving_females;
+              count with
+              nonsurviving_females = succ count.nonsurviving_females;
             });
         assert (children = [])
   in
   traverse_cats cats;
   counter |> Hashtbl.to_seq |> List.of_seq
-  |> List.map (fun (_, generation) -> generation)
+  |> List.map (fun (month_born, count) -> { month_born; count })
+
+let count_size (population : population) =
+  population
+  |> List.fold_left
+       (fun count generation -> add_count count generation.count)
+       empty_count
 
 let rec mate_cats parameters mating_month population =
-  List.map (mate_cat parameters mating_month) population
+  population
+  |> filter_cats (fun cat -> cat.alive)
+  |> List.map (mate_cat parameters mating_month)
 
 and mate_cat parameters mating_month cat =
   match cat.gender with
@@ -228,21 +258,24 @@ and mate_cat parameters mating_month cat =
               [
                 ({
                    month_born = cat.month_born;
-                   surviving_females = 1;
-                   nonsurviving_females = 0;
-                   surviving_males = 0;
-                   nonsurviving_males = 0;
+                   count =
+                     {
+                       surviving_females = 1;
+                       nonsurviving_females = 0;
+                       surviving_males = 0;
+                       nonsurviving_males = 0;
+                     };
                  }
                   : generation);
               ]
           in
-          List.init new_kittens.surviving_females (fun _ ->
+          List.init new_kittens.count.surviving_females (fun _ ->
               new_female ~alive:true new_kittens.month_born)
-          @ List.init new_kittens.nonsurviving_females (fun _ ->
+          @ List.init new_kittens.count.nonsurviving_females (fun _ ->
                 new_female ~alive:false new_kittens.month_born)
-          @ List.init new_kittens.surviving_males (fun _ ->
+          @ List.init new_kittens.count.surviving_males (fun _ ->
                 new_male ~alive:true new_kittens.month_born)
-          @ List.init new_kittens.surviving_females (fun _ ->
+          @ List.init new_kittens.count.nonsurviving_males (fun _ ->
                 new_male ~alive:false new_kittens.month_born)
         else []
       in
@@ -255,39 +288,46 @@ and mate_cat parameters mating_month cat =
 
 type stage =
   | Introduction of { female : cat; male : cat }
+  | FirstLitter of {
+      female : cat;
+      male : cat;
+      children : cats;
+      mating_month : month;
+      mating_months_left : month list;
+    }
   | FirstYearLitter of {
-      first : bool;
       mating_month : month;
       mating_months_left : month list;
       cats : cats;
     }
-  | EndOfFirstYear of cats
+  | EndOfFirstYear of population
   | StartOfOtherYears of { year : year; population : population }
 
 let next_stage parameters = function
   | Introduction { female; male } -> (
       match mating_months parameters.litters_per_year with
       | [] -> assert false
-      | mating_month :: mating_months_left ->
-          FirstYearLitter
-            {
-              first = true;
-              mating_month;
-              mating_months_left;
-              cats = mate_cats parameters mating_month [ female; male ];
-            })
-  | FirstYearLitter { mating_months_left = []; cats; _ } -> EndOfFirstYear cats
+      | mating_month :: mating_months_left -> (
+          let female = mate_cat parameters mating_month female in
+          match female.gender with
+          | Female children ->
+              FirstLitter
+                { female; male; children; mating_month; mating_months_left }
+          | _ -> assert false))
+  | FirstLitter { female; male; mating_month; mating_months_left; _ } ->
+      let cats = [ female; male ] in
+      FirstYearLitter { mating_month; mating_months_left; cats }
+  | FirstYearLitter { mating_months_left = []; cats; _ } ->
+      EndOfFirstYear (cat_population (filter_cats (fun cat -> cat.alive) cats))
   | FirstYearLitter
       { mating_months_left = mating_month :: mating_months_left; cats; _ } ->
       FirstYearLitter
         {
-          first = false;
           mating_month;
           mating_months_left;
           cats = mate_cats parameters mating_month cats;
         }
-  | EndOfFirstYear cats ->
-      StartOfOtherYears { year = Year 1; population = cat_population cats }
+  | EndOfFirstYear population -> StartOfOtherYears { year = Year 1; population }
   | StartOfOtherYears { year; population } ->
       StartOfOtherYears
         {
