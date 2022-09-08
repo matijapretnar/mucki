@@ -248,6 +248,9 @@ let count_size (population : population) =
        (fun count generation -> add_count count generation.count)
        empty_count
 
+let total { surviving_males; surviving_females; _ } =
+  surviving_males + surviving_females
+
 let rec mate_cats parameters mating_month population =
   population
   |> filter_cats (fun cat -> cat.alive)
@@ -333,26 +336,39 @@ let next_stage parameters = function
           cats = mate_cats parameters mating_month cats;
         }
   | EndOfFirstYear population -> EndOfOtherYears { year = Year 1; population }
-  | EndOfOtherYears { year; population } ->
-      EndOfOtherYears
-        {
-          year = next_year year;
-          population = population_after_year parameters year population;
-        }
+  | EndOfOtherYears { year; population } as stage ->
+      let new_population = population_after_year parameters year population in
+      if total (count_size new_population) > total (count_size population) then
+        EndOfOtherYears { year = next_year year; population = new_population }
+      else stage
 
 let rec history parameters stage = function
   | 0 -> []
   | periods ->
       stage :: history parameters (next_stage parameters stage) (periods - 1)
 
-type model = { parameters : parameters; stage : stage }
+type model = { parameters : parameters; stage : stage; history : stage list }
 
 let init =
   let female = new_female ~alive:true (Month (-11))
   and male = new_male ~alive:true (Month (-11)) in
-  { parameters = default_parameters; stage = Introduction { female; male } }
+  {
+    parameters = default_parameters;
+    stage = Introduction { female; male };
+    history = [];
+  }
 
-type msg = SetParameters of parameters
+type msg = SetParameters of parameters | Forward | Backward
 
 let update (model : model) : msg -> model = function
   | SetParameters parameters -> { model with parameters }
+  | Forward ->
+      {
+        model with
+        stage = next_stage model.parameters model.stage;
+        history = model.stage :: model.history;
+      }
+  | Backward -> (
+      match model.history with
+      | stage :: history -> { model with stage; history }
+      | _ -> model)
