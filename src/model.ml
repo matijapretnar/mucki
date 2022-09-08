@@ -121,13 +121,15 @@ let newborn_generation parameters mating_month population =
     Percentage.take_percentage kittens parameters.percentage_of_female_kittens
   in
   let males = kittens - females in
-  let surviving_females =
-    Percentage.take_percentage females
+  let survivors =
+    Percentage.take_percentage kittens
       parameters.percentage_of_kittens_who_survive_to_sexual_maturity
-  and surviving_males =
+  in
+  let surviving_males =
     Percentage.take_percentage males
       parameters.percentage_of_kittens_who_survive_to_sexual_maturity
   in
+  let surviving_females = survivors - surviving_males in
   let nonsurviving_females = females - surviving_females
   and nonsurviving_males = males - surviving_males in
   let month_born = increase_month mating_month parameters.months_of_gestation in
@@ -355,6 +357,9 @@ let rec history parameters stage = function
 type model = { parameters : parameters; stage : stage; history : stage list }
 
 let init =
+  Random.init 123;
+  male_names := Imena.moska;
+  female_names := Imena.zenska;
   let female = new_female ~alive:true (Month (-11))
   and male = new_male ~alive:true (Month (-11)) in
   {
