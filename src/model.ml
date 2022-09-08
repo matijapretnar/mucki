@@ -363,20 +363,24 @@ let init =
     history = [];
   }
 
+let next_model model =
+  {
+    model with
+    stage = next_stage model.parameters model.stage;
+    history = model.stage :: model.history;
+  }
+
+let recompute_model model =
+  List.fold_left
+    (fun model () -> next_model model)
+    { init with parameters = model.parameters }
+    (List.init (List.length model.history) (fun _ -> ()))
+
 type msg = SetParameters of parameters | Forward | Backward
 
 let update (model : model) : msg -> model = function
-  | SetParameters parameters -> (
-      match model.history with
-      | [] -> { model with parameters }
-      | old_stage :: _ ->
-          { model with parameters; stage = next_stage parameters old_stage })
-  | Forward ->
-      {
-        model with
-        stage = next_stage model.parameters model.stage;
-        history = model.stage :: model.history;
-      }
+  | SetParameters parameters -> recompute_model { model with parameters }
+  | Forward -> next_model model
   | Backward -> (
       match model.history with
       | stage :: history -> { model with stage; history }
