@@ -87,18 +87,27 @@ let view_pyramid population months =
     let total = count.surviving_females + count.surviving_males in
 
     let cats =
-      if total < 100 then
+      if total < 300 then
         List.init count.surviving_females (fun _ -> female_image)
         @ List.init count.surviving_males (fun _ -> male_image)
         |> Imena.premesaj |> String.concat ""
       else "OGROMNO"
+    and letter_spacing =
+      if 100 <= total && total < 200 then Some "-0.25em"
+      else if 200 <= total && total < 300 then Some "-0.5em"
+      else None
     in
 
     elt "tr"
       [
         elt "td" [ view_month month ];
         elt "td" [ view_int total ];
-        elt "td" [ text cats ];
+        elt "td"
+          ~a:
+            (match letter_spacing with
+            | None -> []
+            | Some letter_spacing -> [ style "letter-spacing" letter_spacing ])
+          [ text cats ];
       ]
   in
   elt "table"
