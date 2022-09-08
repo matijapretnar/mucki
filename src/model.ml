@@ -337,6 +337,9 @@ let next_stage parameters = function
           cats = mate_cats parameters mating_month cats;
         }
   | EndOfFirstYear population -> EndOfOtherYears { year = Year 1; population }
+  | EndOfOtherYears { year = Year y; _ }
+    when 12 * y > parameters.months_of_lifespan ->
+      Over
   | EndOfOtherYears { year; population } ->
       let new_population = population_after_year parameters year population in
       if total (count_size new_population) > total (count_size population) then
@@ -363,7 +366,11 @@ let init =
 type msg = SetParameters of parameters | Forward | Backward
 
 let update (model : model) : msg -> model = function
-  | SetParameters parameters -> { model with parameters }
+  | SetParameters parameters -> (
+      match model.history with
+      | [] -> { model with parameters }
+      | old_stage :: _ ->
+          { model with parameters; stage = next_stage parameters old_stage })
   | Forward ->
       {
         model with
