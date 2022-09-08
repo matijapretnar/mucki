@@ -117,6 +117,7 @@ let view_stage_title (parameters : Model.parameters) = function
   | Model.EndOfFirstYear _ -> text "Ob koncu prvega leta"
   | Model.EndOfOtherYears { year; _ } ->
       elt "span" [ text "Ob koncu leta "; view_year year ]
+  | Model.Over -> text "Zaključne misli"
 
 let view_stage parameters = function
   | Model.Introduction { female; male } ->
@@ -204,6 +205,7 @@ let view_stage parameters = function
         |> List.concat_map (Model.litter_months parameters)
       in
       view_pyramid population (Model.Month 0 :: months)
+  | Model.Over -> text "Zaključne misli"
 
 let view (model : Model.model) =
   div

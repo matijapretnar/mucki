@@ -310,6 +310,7 @@ type stage =
     }
   | EndOfFirstYear of population
   | EndOfOtherYears of { year : year; population : population }
+  | Over
 
 let next_stage parameters = function
   | Introduction { female; male } -> (
@@ -336,11 +337,12 @@ let next_stage parameters = function
           cats = mate_cats parameters mating_month cats;
         }
   | EndOfFirstYear population -> EndOfOtherYears { year = Year 1; population }
-  | EndOfOtherYears { year; population } as stage ->
+  | EndOfOtherYears { year; population } ->
       let new_population = population_after_year parameters year population in
       if total (count_size new_population) > total (count_size population) then
         EndOfOtherYears { year = next_year year; population = new_population }
-      else stage
+      else Over
+  | Over -> Over
 
 let rec history parameters stage = function
   | 0 -> []
