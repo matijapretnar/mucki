@@ -107,7 +107,7 @@ let view_pyramid population months =
     :: List.map view_month months)
 
 let view_stage_title (parameters : Model.parameters) = function
-  | Model.Introduction _ -> text "Na začetku"
+  | Model.Introduction _ -> view_month (Model.Month 1)
   | Model.FirstLitter { mating_month; _ } ->
       view_month
         (Model.increase_month mating_month parameters.months_of_gestation)
@@ -182,11 +182,17 @@ let view_stage parameters = function
                     parameters with
                     percentage_of_kittens_who_survive_to_sexual_maturity;
                   });
-            text
-              "mladičkov. Poglejmo si, kakšno je videti družinsko drevo po \
-               vsakem leglu.";
-          ])
-  | Model.FirstYearLitter { cats; _ } -> elt "ul" (view_cats cats)
+            text "mladičkov:";
+          ]
+        @ view_list (view_cat_name ~show_still_alive:false) children)
+  | Model.FirstYearLitter { cats; _ } ->
+      elt "p"
+        [
+          text
+            "Poglejmo si, kakšno je videti družinsko drevo po vsakem leglu v \
+             prvem letu.";
+          elt "ul" (view_cats cats);
+        ]
   | Model.EndOfFirstYear population ->
       div
         [
@@ -207,44 +213,49 @@ let view_stage parameters = function
       view_pyramid population (Model.Month 0 :: months)
   | Model.Over -> text "Zaključne misli"
 
+let show_backward (model : Model.model) =
+  match model.history with [] -> false | _ :: _ -> true
+
+let show_forward (model : Model.model) =
+  match model.stage with Model.Over -> false | _ -> true
+
 let view (model : Model.model) =
+  let backward_button =
+    input []
+      ~a:
+        [
+          onclick (fun _ -> Model.Backward);
+          type_button;
+          value "Nazaj";
+          class_ "button";
+        ]
+  and heading =
+    elt "p"
+      ~a:[ class_ "subtitle is-5" ]
+      [ view_stage_title model.parameters model.stage ]
+  and forward_button =
+    input []
+      ~a:
+        [
+          onclick (fun _ -> Model.Forward);
+          type_button;
+          value "Naprej";
+          class_ "button";
+        ]
+  in
+
+  let panel_items =
+    (if show_backward model then [ backward_button ] else [])
+    @ [ heading ]
+    @ if show_forward model then [ forward_button ] else []
+  in
   div
     [
       div
         ~a:[ class_ "level" ]
-        [
-          div
-            ~a:[ class_ "level-item" ]
-            [
-              input []
-                ~a:
-                  [
-                    onclick (fun _ -> Model.Backward);
-                    type_button;
-                    value "Nazaj";
-                    class_ "button";
-                  ];
-            ];
-          div
-            ~a:[ class_ "level-item" ]
-            [
-              elt "p"
-                ~a:[ class_ "subtitle is-5" ]
-                [ view_stage_title model.parameters model.stage ];
-            ];
-          div
-            ~a:[ class_ "level-item" ]
-            [
-              input []
-                ~a:
-                  [
-                    onclick (fun _ -> Model.Forward);
-                    type_button;
-                    value "Naprej";
-                    class_ "button";
-                  ];
-            ];
-        ];
+        (List.map
+           (fun panel_item -> div ~a:[ class_ "level-item" ] [ panel_item ])
+           panel_items);
       div ~a:[ class_ "content" ] [ view_stage model.parameters model.stage ];
     ]
 
