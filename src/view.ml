@@ -54,24 +54,6 @@ let view_rich_string ~color ~strikethrough str =
 let male_image = "😼"
 let female_image = "😻"
 
-let view_count (count : Model.count) =
-  let cats =
-    List.init count.surviving_females (fun _ -> female_image)
-    @ List.init count.surviving_males (fun _ -> male_image)
-  in
-  elt "span"
-    (* ~a:[ style "letter-spacing" "-0.4em" ] *)
-    [
-      view_text "%d" (count.surviving_females + count.surviving_males);
-      text (String.concat "" (Imena.premesaj cats));
-    ]
-
-let view_generation (generation : Model.generation) =
-  view_count generation.count
-
-let view_population (population : Model.population) =
-  view_count (Model.count_size population)
-
 let view_cat_name ?(show_still_alive = false) (cat : Model.cat) =
   let alive = cat.alive || show_still_alive in
   let color, emoji =
@@ -93,6 +75,36 @@ and view_cat ?show_still_alive (cat : Model.cat) =
   | Model.Female children ->
       elt "span"
         [ view_cat_name ?show_still_alive cat; elt "ul" (view_cats children) ]
+
+let view_pyramid population months =
+  let view_month month =
+    let count =
+      population
+      |> List.filter (fun (generation : Model.generation) ->
+             generation.month_born <= month)
+      |> Model.count_size
+    in
+    let total = count.surviving_females + count.surviving_males in
+
+    let cats =
+      if total < 100 then
+        List.init count.surviving_females (fun _ -> female_image)
+        @ List.init count.surviving_males (fun _ -> male_image)
+        |> Imena.premesaj |> String.concat ""
+      else "OGROMNO"
+    in
+
+    elt "tr"
+      [
+        elt "td" [ view_month month ];
+        elt "td" [ view_int total ];
+        elt "td" [ text cats ];
+      ]
+  in
+  elt "table"
+    (elt "tr"
+       [ elt "th" [ text "mesec" ]; elt "th" [ text "skupaj" ]; elt "td" [] ]
+    :: List.map view_month months)
 
 let view_stage parameters = function
   | Model.Introduction { female; male } ->
@@ -185,12 +197,27 @@ let view_stage parameters = function
           elt "ul" (view_cats cats);
         ]
   | Model.EndOfFirstYear population ->
-      div [ elt "h2" [ text "Če povzamemo" ]; view_population population ]
-  | Model.StartOfOtherYears { year; population } ->
       div
         [
-          elt "h2" [ text "Na začetku leta "; view_year year ];
-          view_population population;
+          elt "h2" [ text "Ob koncu prvega leta" ];
+          elt "p"
+            [
+              text
+                "Če zgornje podatke povzamemo v tabeli, so številke v vsakem \
+                 mesecu sledeče:";
+            ];
+          view_pyramid population
+            (Model.Month 0 :: Model.litter_months parameters (Model.Year 0));
+        ]
+  | Model.EndOfOtherYears { year = Model.Year y as year; population } ->
+      let months =
+        List.init y (fun y -> Model.Year y)
+        |> List.concat_map (Model.litter_months parameters)
+      in
+      div
+        [
+          elt "h2" [ text "Ob koncu leta "; view_year year ];
+          view_pyramid population (Model.Month 0 :: months);
         ]
 
 let view (model : Model.model) =

@@ -85,6 +85,11 @@ let mating_months = function
   | Two -> [ Month 1; Month 8 ]
   | Three -> [ Month 1; Month 5; Month 8 ]
 
+let litter_months parameters year =
+  mating_months parameters.litters_per_year
+  |> List.map (fun month ->
+         add_year year (increase_month month parameters.months_of_gestation))
+
 let is_sexually_active parameters mating_month month_born =
   increase_month month_born parameters.months_before_mature <= mating_month
   && mating_month <= increase_month month_born parameters.months_of_lifespan
@@ -301,7 +306,7 @@ type stage =
       cats : cats;
     }
   | EndOfFirstYear of population
-  | StartOfOtherYears of { year : year; population : population }
+  | EndOfOtherYears of { year : year; population : population }
 
 let next_stage parameters = function
   | Introduction { female; male } -> (
@@ -327,9 +332,9 @@ let next_stage parameters = function
           mating_months_left;
           cats = mate_cats parameters mating_month cats;
         }
-  | EndOfFirstYear population -> StartOfOtherYears { year = Year 1; population }
-  | StartOfOtherYears { year; population } ->
-      StartOfOtherYears
+  | EndOfFirstYear population -> EndOfOtherYears { year = Year 1; population }
+  | EndOfOtherYears { year; population } ->
+      EndOfOtherYears
         {
           year = next_year year;
           population = population_after_year parameters year population;
