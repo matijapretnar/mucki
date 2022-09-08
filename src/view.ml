@@ -209,26 +209,43 @@ let view_stage parameters = function
 
 let view (model : Model.model) =
   div
-    ~a:[ class_ "content" ]
     [
-      input []
-        ~a:
-          [
-            onclick (fun _ -> Model.Backward);
-            type_button;
-            value "Nazaj";
-            class_ "button";
-          ];
-      input []
-        ~a:
-          [
-            onclick (fun _ -> Model.Forward);
-            type_button;
-            value "Naprej";
-            class_ "button";
-          ];
-      elt "h2" [ view_stage_title model.parameters model.stage ];
-      view_stage model.parameters model.stage;
+      div
+        ~a:[ class_ "level" ]
+        [
+          div
+            ~a:[ class_ "level-item" ]
+            [
+              input []
+                ~a:
+                  [
+                    onclick (fun _ -> Model.Backward);
+                    type_button;
+                    value "Nazaj";
+                    class_ "button";
+                  ];
+            ];
+          div
+            ~a:[ class_ "level-item" ]
+            [
+              elt "p"
+                ~a:[ class_ "subtitle is-5" ]
+                [ view_stage_title model.parameters model.stage ];
+            ];
+          div
+            ~a:[ class_ "level-item" ]
+            [
+              input []
+                ~a:
+                  [
+                    onclick (fun _ -> Model.Forward);
+                    type_button;
+                    value "Naprej";
+                    class_ "button";
+                  ];
+            ];
+        ];
+      div ~a:[ class_ "content" ] [ view_stage model.parameters model.stage ];
     ]
 
 (* let view_cat (cat : Model.cat) =
