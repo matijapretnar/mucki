@@ -86,28 +86,24 @@ let view_pyramid population months =
     in
     let total = count.surviving_females + count.surviving_males in
 
+    let shelter_capacity = 200 in
     let cats =
-      if total < 300 then
+      if total < shelter_capacity then
         List.init count.surviving_females (fun _ -> female_image)
         @ List.init count.surviving_males (fun _ -> male_image)
         |> Imena.premesaj |> String.concat ""
-      else "OGROMNO"
-    and letter_spacing =
-      if 100 <= total && total < 200 then Some "-0.25em"
-      else if 200 <= total && total < 300 then Some "-0.5em"
-      else None
+      else
+        let stevilo = total / shelter_capacity in
+        (List.init stevilo (fun _ -> "🏨") |> String.concat "")
+        ^ Printf.sprintf " - %d %s Gmajnice" stevilo
+            (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" stevilo)
     in
 
     elt "tr"
       [
         elt "td" [ view_month month ];
         elt "td" [ view_int total ];
-        elt "td"
-          ~a:
-            (match letter_spacing with
-            | None -> []
-            | Some letter_spacing -> [ style "letter-spacing" letter_spacing ])
-          [ text cats ];
+        elt "td" [ text cats ];
       ]
   in
   elt "table"
@@ -126,7 +122,7 @@ let view_stage_title (parameters : Model.parameters) = function
   | Model.EndOfFirstYear _ -> text "Ob koncu prvega leta"
   | Model.EndOfOtherYears { year; _ } ->
       elt "span" [ text "Ob koncu leta "; view_year year ]
-  | Model.Over -> text "Zaključne misli"
+  | Model.Over _ -> text "Zaključne misli"
 
 let view_stage parameters = function
   | Model.Introduction { female; male } ->
@@ -220,13 +216,36 @@ let view_stage parameters = function
         |> List.concat_map (Model.litter_months parameters)
       in
       view_pyramid population (Model.Month 0 :: months)
-  | Model.Over -> text "Zaključne misli"
+  | Model.Over { year = Model.Year y; population } ->
+      let months =
+        List.init y (fun y -> Model.Year y)
+        |> List.concat_map (Model.litter_months parameters)
+      in
+      let dead_kittens = Model.dead_kittens parameters population in
+      div
+        [
+          text "Ker vidimo, da brez omejitev število mačk raste, po ";
+          int_dropdown ~default:parameters.spaying_started 0
+            parameters.years_of_lifespan (fun spaying_started ->
+              Model.SetParameters { parameters with spaying_started });
+          text " letih začnemo s sterilizacijo, ki doseže ";
+          percentage_dropdown ~default:parameters.percentage_spayed
+            (fun percentage_spayed ->
+              Model.SetParameters { parameters with percentage_spayed });
+          view_text
+            " mačk. V tem primeru so števila kot spodaj, v vsem tem času pa %s \
+             %d %s."
+            (koncnica "pogine" "pogineta" "poginejo" "pogine" dead_kittens)
+            dead_kittens
+            (koncnica "mucek" "mucka" "mucki" "muckov" dead_kittens);
+          view_pyramid population (Model.Month 0 :: months);
+        ]
 
 let show_backward (model : Model.model) =
   match model.history with [] -> false | _ :: _ -> true
 
 let show_forward (model : Model.model) =
-  match model.stage with Model.Over -> false | _ -> true
+  match model.stage with Model.Over _ -> false | _ -> true
 
 let view (model : Model.model) =
   let backward_button =

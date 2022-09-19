@@ -3,6 +3,7 @@ module Percentage : sig
 
   val of_int : int -> t
   val take_percentage : int -> t -> int
+  val ratio : t -> t -> t
   val inverse : t -> t
   val to_string : t -> string
 end = struct
@@ -24,6 +25,7 @@ end = struct
     round_div (n * p) 100
 
   let inverse (Percent p) = Percent (100 - p)
+  let ratio (Percent p) (Percent q) = Percent (100 * p / q)
   let to_string (Percent p) = Printf.sprintf "%d %%" p
 end
 
@@ -63,10 +65,12 @@ type parameters = {
   litters_per_year : litters_per_year;
   months_of_gestation : int;
   months_before_mature : int;
-  months_of_lifespan : int;
+  years_of_lifespan : int;
   kittens_per_litter : int;
   percentage_of_female_kittens : Percentage.t;
   percentage_of_kittens_who_survive_to_sexual_maturity : Percentage.t;
+  percentage_spayed : Percentage.t;
+  spaying_started : int;
 }
 
 let default_parameters =
@@ -74,10 +78,12 @@ let default_parameters =
     litters_per_year = Three;
     months_of_gestation = 2;
     months_before_mature = 4;
-    months_of_lifespan = 48;
+    years_of_lifespan = 4;
     kittens_per_litter = 6;
     percentage_of_female_kittens = Percentage.of_int 50;
     percentage_of_kittens_who_survive_to_sexual_maturity = Percentage.of_int 50;
+    percentage_spayed = Percentage.of_int 30;
+    spaying_started = 4;
   }
 
 let mating_months = function
@@ -92,7 +98,8 @@ let litter_months parameters year =
 
 let is_sexually_active parameters mating_month month_born =
   increase_month month_born parameters.months_before_mature <= mating_month
-  && mating_month <= increase_month month_born parameters.months_of_lifespan
+  && mating_month
+     <= increase_month month_born (12 * parameters.years_of_lifespan)
 
 type count = {
   surviving_females : int;
@@ -109,6 +116,12 @@ let active_females parameters mating_month (population : population) =
   |> List.filter (fun generation ->
          is_sexually_active parameters mating_month generation.month_born)
   |> List.map (fun generation -> generation.count.surviving_females)
+  |> List.map (fun females ->
+         if mating_month < add_year (Year parameters.spaying_started) (Month 1)
+         then females
+         else
+           Percentage.take_percentage females
+             (Percentage.inverse parameters.percentage_spayed))
   |> List.fold_left ( + ) 0
 
 let kittens_born parameters mating_month population =
@@ -253,6 +266,14 @@ let count_size (population : population) =
 let total { surviving_males; surviving_females; _ } =
   surviving_males + surviving_females
 
+let dead_kittens parameters population =
+  let alive_cats = total (count_size population) in
+  Percentage.take_percentage alive_cats
+    (Percentage.ratio
+       (Percentage.inverse
+          parameters.percentage_of_kittens_who_survive_to_sexual_maturity)
+       parameters.percentage_of_kittens_who_survive_to_sexual_maturity)
+
 let rec mate_cats parameters mating_month population =
   population
   |> filter_cats (fun cat -> cat.alive)
@@ -312,7 +333,7 @@ type stage =
     }
   | EndOfFirstYear of population
   | EndOfOtherYears of { year : year; population : population }
-  | Over
+  | Over of { year : year; population : population }
 
 let next_stage parameters = function
   | Introduction { female; male } -> (
@@ -339,15 +360,13 @@ let next_stage parameters = function
           cats = mate_cats parameters mating_month cats;
         }
   | EndOfFirstYear population -> EndOfOtherYears { year = Year 1; population }
-  | EndOfOtherYears { year = Year y; _ }
-    when 12 * y > parameters.months_of_lifespan ->
-      Over
   | EndOfOtherYears { year; population } ->
       let new_population = population_after_year parameters year population in
-      if total (count_size new_population) > total (count_size population) then
-        EndOfOtherYears { year = next_year year; population = new_population }
-      else Over
-  | Over -> Over
+      let (Year y as new_year) = next_year year in
+      if y >= parameters.years_of_lifespan then
+        Over { year = new_year; population = new_population }
+      else EndOfOtherYears { year = new_year; population = new_population }
+  | Over _ as stage -> stage
 
 let rec history parameters stage = function
   | 0 -> []
