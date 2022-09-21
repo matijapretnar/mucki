@@ -91,7 +91,7 @@ let view_pyramid population months =
       if total < shelter_capacity then
         List.init count.surviving_females (fun _ -> female_image)
         @ List.init count.surviving_males (fun _ -> male_image)
-        |> Imena.premesaj |> String.concat ""
+        |> Names.premesaj |> String.concat ""
       else
         let stevilo = total / shelter_capacity in
         (List.init stevilo (fun _ -> "🏨") |> String.concat "")

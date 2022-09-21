@@ -203,26 +203,21 @@ let rec filter_cat p cat =
 
 and filter_cats p cats = cats |> List.filter p |> List.map (filter_cat p)
 
-let female_names = ref Imena.zenska
-let male_names = ref Imena.moska
-
 let pick_name unused all =
-  match !unused with
-  | name :: names ->
-      unused := names;
-      name
+  match unused with
+  | name :: unused -> (unused, name)
   | [] ->
       let m = List.length all in
       let i = Random.int m and j = Random.int m in
-      Printf.sprintf "%s-%s" (List.nth all i) (List.nth all j)
+      ([], Printf.sprintf "%s-%s" (List.nth all i) (List.nth all j))
 
-let new_male ~alive month_born =
-  let name = pick_name male_names Imena.moska in
-  { name; month_born; alive; gender = Male }
-
-let new_female ~alive month_born =
-  let name = pick_name female_names Imena.zenska in
-  { name; month_born; alive; gender = Female [] }
+let rec new_cats unused all new_cat = function
+  | 0 -> (unused, [])
+  | n ->
+      let unused, name = pick_name unused all in
+      let cat = new_cat name in
+      let unused, cats = new_cats unused all new_cat (n - 1) in
+      (unused, cat :: cats)
 
 let cat_population cats =
   let counter = Hashtbl.create 64 in
@@ -274,15 +269,17 @@ let dead_kittens parameters population =
           parameters.percentage_of_kittens_who_survive_to_sexual_maturity)
        parameters.percentage_of_kittens_who_survive_to_sexual_maturity)
 
-let rec mate_cats parameters mating_month population =
+let rec mate_cats parameters (names : Names.t) mating_month population =
   population
   |> filter_cats (fun cat -> cat.alive)
-  |> List.map (mate_cat parameters mating_month)
+  |> List.fold_left_map
+       (fun names cat -> mate_cat parameters names mating_month cat)
+       names
 
-and mate_cat parameters mating_month cat =
+and mate_cat parameters names mating_month cat =
   match cat.gender with
   | Female children when cat.alive ->
-      let new_children =
+      let names, new_children =
         if is_sexually_active parameters mating_month cat.month_born then
           let new_kittens =
             newborn_generation parameters mating_month
@@ -300,22 +297,36 @@ and mate_cat parameters mating_month cat =
                   : generation);
               ]
           in
-          List.init new_kittens.count.surviving_females (fun _ ->
-              new_female ~alive:true new_kittens.month_born)
-          @ List.init new_kittens.count.nonsurviving_females (fun _ ->
-                new_female ~alive:false new_kittens.month_born)
-          @ List.init new_kittens.count.surviving_males (fun _ ->
-                new_male ~alive:true new_kittens.month_born)
-          @ List.init new_kittens.count.nonsurviving_males (fun _ ->
-                new_male ~alive:false new_kittens.month_born)
-        else []
+          let month_born = new_kittens.month_born
+          and count = new_kittens.count in
+          let female_names', surviving_females =
+            new_cats names.female Names.zenska
+              (fun name ->
+                { name; month_born; alive = true; gender = Female [] })
+              count.surviving_females
+          and male_names', surviving_males =
+            new_cats names.male Names.moska
+              (fun name -> { name; month_born; alive = true; gender = Male })
+              count.surviving_males
+          in
+          let female_names'', nonsurviving_females =
+            new_cats female_names' Names.zenska
+              (fun name ->
+                { name; month_born; alive = false; gender = Female [] })
+              count.nonsurviving_females
+          and male_names'', nonsurviving_males =
+            new_cats male_names' Names.moska
+              (fun name -> { name; month_born; alive = false; gender = Male })
+              count.nonsurviving_males
+          in
+          ( Names.{ female = female_names''; male = male_names'' },
+            surviving_females @ surviving_males @ nonsurviving_females
+            @ nonsurviving_males )
+        else (names, [])
       in
-      {
-        cat with
-        gender =
-          Female (new_children @ mate_cats parameters mating_month children);
-      }
-  | _ -> cat
+      let names', children = mate_cats parameters names mating_month children in
+      (names', { cat with gender = Female (new_children @ children) })
+  | _ -> (names, cat)
 
 type stage =
   | Introduction of { female : cat; male : cat }
@@ -335,64 +346,77 @@ type stage =
   | EndOfOtherYears of { year : year; population : population }
   | Over of { year : year; population : population }
 
-let next_stage parameters = function
+let next_stage parameters names = function
   | Introduction { female; male } -> (
       match mating_months parameters.litters_per_year with
       | [] -> assert false
       | mating_month :: mating_months_left -> (
-          let female = mate_cat parameters mating_month female in
+          let names, female = mate_cat parameters names mating_month female in
           match female.gender with
           | Female children ->
-              FirstLitter
-                { female; male; children; mating_month; mating_months_left }
+              ( names,
+                FirstLitter
+                  { female; male; children; mating_month; mating_months_left }
+              )
           | _ -> assert false))
   | FirstLitter { female; male; mating_month; mating_months_left; _ } ->
       let cats = [ female; male ] in
-      FirstYearLitter { mating_month; mating_months_left; cats }
+      (names, FirstYearLitter { mating_month; mating_months_left; cats })
   | FirstYearLitter { mating_months_left = []; cats; _ } ->
-      EndOfFirstYear (cat_population (filter_cats (fun cat -> cat.alive) cats))
+      ( names,
+        EndOfFirstYear
+          (cat_population (filter_cats (fun cat -> cat.alive) cats)) )
   | FirstYearLitter
       { mating_months_left = mating_month :: mating_months_left; cats; _ } ->
-      FirstYearLitter
-        {
-          mating_month;
-          mating_months_left;
-          cats = mate_cats parameters mating_month cats;
-        }
-  | EndOfFirstYear population -> EndOfOtherYears { year = Year 1; population }
+      let names, cats = mate_cats parameters names mating_month cats in
+      (names, FirstYearLitter { mating_month; mating_months_left; cats })
+  | EndOfFirstYear population ->
+      (names, EndOfOtherYears { year = Year 1; population })
   | EndOfOtherYears { year; population } ->
       let new_population = population_after_year parameters year population in
       let (Year y as new_year) = next_year year in
       if y >= parameters.years_of_lifespan then
-        Over { year = new_year; population = new_population }
-      else EndOfOtherYears { year = new_year; population = new_population }
-  | Over _ as stage -> stage
+        (names, Over { year = new_year; population = new_population })
+      else
+        (names, EndOfOtherYears { year = new_year; population = new_population })
+  | Over _ as stage -> (names, stage)
 
-let rec history parameters stage = function
-  | 0 -> []
-  | periods ->
-      stage :: history parameters (next_stage parameters stage) (periods - 1)
-
-type model = { parameters : parameters; stage : stage; history : stage list }
+type model = {
+  parameters : parameters;
+  stage : stage;
+  names : Names.t;
+  history : stage list;
+}
 
 let init =
-  Random.init 123;
-  male_names := Imena.moska;
-  female_names := Imena.zenska;
-  let female = new_female ~alive:true (Month (-11))
-  and male = new_male ~alive:true (Month (-11)) in
+  let female_name, male_name, names = Names.initial in
   {
     parameters = default_parameters;
-    stage = Introduction { female; male };
+    stage =
+      Introduction
+        {
+          female =
+            {
+              name = female_name;
+              month_born = Month (-11);
+              alive = true;
+              gender = Female [];
+            };
+          male =
+            {
+              name = male_name;
+              month_born = Month (-11);
+              alive = true;
+              gender = Male;
+            };
+        };
     history = [];
+    names;
   }
 
 let next_model model =
-  {
-    model with
-    stage = next_stage model.parameters model.stage;
-    history = model.stage :: model.history;
-  }
+  let names, stage = next_stage model.parameters model.names model.stage in
+  { model with stage; names; history = model.stage :: model.history }
 
 let recompute_model model =
   List.fold_left

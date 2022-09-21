@@ -1,5 +1,7 @@
 Random.self_init ()
 
+type t = { female : string list; male : string list }
+
 let premesaj lst =
   lst
   |> List.map (fun a -> (Random.float 1., a))
@@ -78,3 +80,9 @@ let zenska =
       "Tufi";
       "Zara";
     ]
+
+let initial =
+  match (premesaj zenska, premesaj moska) with
+  | first_female :: female, first_male :: male ->
+      (first_female, first_male, { female; male })
+  | _, _ -> assert false
