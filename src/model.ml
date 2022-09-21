@@ -138,11 +138,22 @@ let newborn_generation parameters mating_month population =
     Percentage.take_percentage kittens
       parameters.percentage_of_kittens_who_survive_to_sexual_maturity
   in
-  let surviving_males =
-    Percentage.take_percentage males
-      parameters.percentage_of_kittens_who_survive_to_sexual_maturity
+  let surviving_females, surviving_males =
+    if Random.bool () then
+      let surviving_males =
+        Percentage.take_percentage males
+          parameters.percentage_of_kittens_who_survive_to_sexual_maturity
+      in
+      let surviving_females = survivors - surviving_males in
+      (surviving_females, surviving_males)
+    else
+      let surviving_females =
+        Percentage.take_percentage females
+          parameters.percentage_of_kittens_who_survive_to_sexual_maturity
+      in
+      let surviving_males = survivors - surviving_females in
+      (surviving_females, surviving_males)
   in
-  let surviving_females = survivors - surviving_males in
   let nonsurviving_females = females - surviving_females
   and nonsurviving_males = males - surviving_males in
   let month_born = increase_month mating_month parameters.months_of_gestation in
