@@ -70,11 +70,18 @@ let rec view_cats ?show_still_alive cats =
   |> List.map (fun cat -> elt "li" [ view_cat ?show_still_alive cat ])
 
 and view_cat ?show_still_alive (cat : Model.cat) =
+  let view_born =
+    elt "small" [ text " "; text (Model.month_string cat.month_born) ]
+  in
   match cat.gender with
-  | Model.Male -> view_cat_name ?show_still_alive cat
+  | Model.Male -> elt "span" [ view_cat_name ?show_still_alive cat; view_born ]
   | Model.Female children ->
       elt "span"
-        [ view_cat_name ?show_still_alive cat; elt "ul" (view_cats children) ]
+        [
+          view_cat_name ?show_still_alive cat;
+          view_born;
+          elt "ul" (view_cats children);
+        ]
 
 let view_pyramid population months =
   let view_month month =
