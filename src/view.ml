@@ -96,7 +96,7 @@ let view_pyramid population months =
              generation.month_born <= month)
       |> Model.count_size
     in
-    let total = count.surviving_females + count.surviving_males in
+    let total = round (count.surviving_females + count.surviving_males) in
 
     let shelter_capacity = 200 in
     let cats =
@@ -105,7 +105,10 @@ let view_pyramid population months =
         @ List.init count.surviving_males (fun _ -> male_image)
         |> Names.premesaj |> String.concat ""
       else
-        let stevilo = total / shelter_capacity in
+        let stevilo =
+          (total / shelter_capacity)
+          + if total mod shelter_capacity = 0 then 0 else 1
+        in
         (List.init stevilo (fun _ -> "🏨") |> String.concat "")
         ^ Printf.sprintf " - %d %s Gmajnice" stevilo
             (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" stevilo)
@@ -132,8 +135,8 @@ let view_stage_title (parameters : Model.parameters) = function
       view_month
         (Model.increase_month mating_month parameters.months_of_gestation)
   | Model.EndOfFirstYear _ -> text "Ob koncu prvega leta"
-  | Model.EndOfOtherYears { year; _ } ->
-      elt "span" [ text "Ob koncu leta "; view_year year ]
+  | Model.EndOfOtherYears { year = Year y; _ } ->
+      elt "span" [ text "Ob koncu leta "; view_year (Year (y - 1)) ]
   | Model.Over _ -> text "Zaključne misli"
 
 let litters_per_year_dropdown parameters =
