@@ -131,6 +131,29 @@ let view_stage_title (parameters : Model.parameters) = function
       elt "span" [ text "Ob koncu leta "; view_year year ]
   | Model.Over _ -> text "Zaključne misli"
 
+let litters_per_year_dropdown parameters =
+  dropdown ~default:parameters.Model.litters_per_year
+    [ Model.One; Model.Two; Model.Three ]
+    (function
+      | Model.One -> "enkrat"
+      | Model.Two -> "dvakrat"
+      | Model.Three -> "trikrat")
+    (fun litters_per_year ->
+      Model.SetParameters { parameters with litters_per_year })
+
+let kittens_per_litter_dropdown parameters =
+  int_dropdown ~default:parameters.Model.kittens_per_litter 1 8
+    (fun kittens_per_litter ->
+      Model.SetParameters { parameters with kittens_per_litter })
+
+let percentage_of_kittens_who_survive_to_sexual_maturity_dropdown parameters =
+  percentage_dropdown
+    ~default:
+      parameters.Model.percentage_of_kittens_who_survive_to_sexual_maturity
+    (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
+      Model.SetParameters
+        { parameters with percentage_of_kittens_who_survive_to_sexual_maturity })
+
 let view_stage parameters = function
   | Model.Introduction { female; male } ->
       div
@@ -144,14 +167,7 @@ let view_stage parameters = function
               text " in njen izbranec ";
               view_cat_name male;
               text ". Mačke imajo mladiče ";
-              dropdown ~default:parameters.Model.litters_per_year
-                [ Model.One; Model.Two; Model.Three ]
-                (function
-                  | Model.One -> "enkrat"
-                  | Model.Two -> "dvakrat"
-                  | Model.Three -> "trikrat")
-                (fun litters_per_year ->
-                  Model.SetParameters { parameters with litters_per_year });
+              litters_per_year_dropdown parameters;
               text
                 " na leto. (Če želite, lahko to in druge številke v zgodbi \
                  nastavite na svoje vrednosti.)";
@@ -167,9 +183,7 @@ let view_stage parameters = function
                 parameters.months_of_gestation);
            view_text " na svet primijavka%s "
              (koncnica "" "ta" "jo" "" parameters.kittens_per_litter);
-           int_dropdown ~default:parameters.kittens_per_litter 1 8
-             (fun kittens_per_litter ->
-               Model.SetParameters { parameters with kittens_per_litter });
+           kittens_per_litter_dropdown parameters;
            view_text "muc%s:"
              (koncnica "ek" "ka" "ki" "kov" parameters.kittens_per_litter);
          ]
@@ -187,15 +201,8 @@ let view_stage parameters = function
                = Model.Percentage.of_int 100
               then "a odraslost doživi"
               else "zato odraslost doživi le");
-            percentage_dropdown
-              ~default:
-                parameters.percentage_of_kittens_who_survive_to_sexual_maturity
-              (fun percentage_of_kittens_who_survive_to_sexual_maturity ->
-                Model.SetParameters
-                  {
-                    parameters with
-                    percentage_of_kittens_who_survive_to_sexual_maturity;
-                  });
+            percentage_of_kittens_who_survive_to_sexual_maturity_dropdown
+              parameters;
             text "mladičkov:";
           ]
         @ view_list (view_cat_name ~show_still_alive:false) children)
@@ -249,8 +256,33 @@ let view_stage parameters = function
           percentage_dropdown ~default:parameters.percentage_spayed
             (fun percentage_spayed ->
               Model.SetParameters { parameters with percentage_spayed });
-          view_text " mačk. Prej kot bi začeli, boljše bi bilo.";
+          view_text " mačk. Prej kot bi začeli, boljše bi bilo. ";
           view_pyramid population (Model.Month 0 :: months);
+          view_text
+            "Če želite preizkušati različne scenarije, lahko spreminjate tudi \
+             ostale parametre simulacije:";
+          elt "table"
+            [
+              elt "tr"
+                [
+                  elt "th" [ text "število legel na leto" ];
+                  elt "td" [ litters_per_year_dropdown parameters ];
+                ];
+              elt "tr"
+                [
+                  elt "th" [ text "število mladičev v leglu" ];
+                  elt "td" [ kittens_per_litter_dropdown parameters ];
+                ];
+              elt "tr"
+                [
+                  elt "th" [ text "delež mladičev, ki doživi odraslost" ];
+                  elt "td"
+                    [
+                      percentage_of_kittens_who_survive_to_sexual_maturity_dropdown
+                        parameters;
+                    ];
+                ];
+            ];
         ]
 
 let show_backward (model : Model.model) =
