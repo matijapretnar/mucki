@@ -264,10 +264,11 @@ let view_stage parameters = function
           percentage_dropdown ~default:parameters.percentage_spayed
             (fun percentage_spayed ->
               Model.SetParameters { parameters with percentage_spayed });
-          view_text
-            " mačk. Prej kot bi začeli, boljše bi bilo, saj je v vsem tem času \
+          view_text " mačk.";
+          (* view_text
+            "Prej kot bi začeli, boljše bi bilo, saj je v vsem tem času \
              poginilo okoli %d mladičkov."
-            (round (Model.dead_kittens parameters population));
+            (round (Model.dead_kittens parameters population)); *)
           view_pyramid population (Model.Month 0 :: months);
           view_text
             "Če želite preizkušati različne scenarije, lahko spreminjate tudi \
