@@ -137,7 +137,9 @@ let view_stage parameters = function
         [
           elt "p"
             [
-              text "Nekoč sta bila 2 potepuha: mačka ";
+              text
+                "Ali je 1 + 1 vedno enako 2? V naravi ne! Nekoč sta bila 2 \
+                 potepuha: mačka ";
               view_cat_name female;
               text " in njen izbranec ";
               view_cat_name male;
@@ -211,8 +213,8 @@ let view_stage parameters = function
           elt "p"
             [
               text
-                "Če zgornje podatke povzamemo v tabeli, so številke v vsakem \
-                 mesecu sledeče:";
+                "Ker drevo postaja že malo nepregledno, raje poglejmo, koliko \
+                 je bilo mačk v vsakem obdobju.";
             ];
           view_pyramid population
             (Model.Month 0 :: Model.litter_months parameters (Model.Year 0));
@@ -222,13 +224,21 @@ let view_stage parameters = function
         List.init y (fun y -> Model.Year y)
         |> List.concat_map (Model.litter_months parameters)
       in
-      view_pyramid population (Model.Month 0 :: months)
+      let dead_kittens = Model.dead_kittens parameters population in
+      div
+        [
+          view_pyramid population (Model.Month 0 :: months);
+          view_text "V vsem tem času %s %d %s."
+            (koncnica "je poginil" "sta poginila" "so poginili" "je poginilo"
+               dead_kittens)
+            dead_kittens
+            (koncnica "mucek" "mucka" "mucki" "muckov" dead_kittens);
+        ]
   | Model.Over { year = Model.Year y; population } ->
       let months =
         List.init y (fun y -> Model.Year y)
         |> List.concat_map (Model.litter_months parameters)
       in
-      let dead_kittens = Model.dead_kittens parameters population in
       div
         [
           text "Ker vidimo, da brez omejitev število mačk raste, po ";
@@ -239,12 +249,7 @@ let view_stage parameters = function
           percentage_dropdown ~default:parameters.percentage_spayed
             (fun percentage_spayed ->
               Model.SetParameters { parameters with percentage_spayed });
-          view_text
-            " mačk. V tem primeru so števila kot spodaj, v vsem tem času pa %s \
-             %d %s."
-            (koncnica "pogine" "pogineta" "poginejo" "pogine" dead_kittens)
-            dead_kittens
-            (koncnica "mucek" "mucka" "mucki" "muckov" dead_kittens);
+          view_text " mačk. Prej kot bi začeli, boljše bi bilo.";
           view_pyramid population (Model.Month 0 :: months);
         ]
 

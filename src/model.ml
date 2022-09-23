@@ -384,11 +384,19 @@ let next_stage parameters names = function
   | EndOfFirstYear population ->
       (names, EndOfOtherYears { year = Year 1; population })
   | EndOfOtherYears { year; population } ->
-      let new_population = population_after_year parameters year population in
       let (Year y as new_year) = next_year year in
       if y >= parameters.years_of_lifespan then
+        let new_year, new_population =
+          List.init 3 (fun i -> Year (y + i - 1))
+          |> List.fold_left
+               (fun (_, population) year ->
+                 (year, population_after_year parameters year population))
+               (year, population)
+        in
+
         (names, Over { year = new_year; population = new_population })
       else
+        let new_population = population_after_year parameters year population in
         (names, EndOfOtherYears { year = new_year; population = new_population })
   | Over _ as stage -> (names, stage)
 
