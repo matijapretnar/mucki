@@ -137,7 +137,7 @@ let view_stage_title (parameters : Model.parameters) = function
   | Model.EndOfFirstYear _ -> text "Ob koncu prvega leta"
   | Model.EndOfOtherYears { year = Year y; _ } ->
       elt "span" [ text "Ob koncu leta "; view_year (Year (y - 1)) ]
-  | Model.Over _ -> text "Zaključne misli"
+  | Model.Over _ -> text "Po nekaj letih"
 
 let litters_per_year_dropdown parameters =
   dropdown ~default:parameters.Model.litters_per_year

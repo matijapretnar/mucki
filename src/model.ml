@@ -382,7 +382,9 @@ let next_stage parameters names = function
       let names, cats = mate_cats parameters names mating_month cats in
       (names, FirstYearLitter { mating_month; mating_months_left; cats })
   | EndOfFirstYear population ->
-      (names, EndOfOtherYears { year = Year 1; population })
+      let new_year = Year 2 in
+      let population = population_after_year parameters (Year 1) population in
+      (names, EndOfOtherYears { year = new_year; population })
   | EndOfOtherYears { year; population } ->
       let (Year y as new_year) = next_year year in
       if y >= parameters.years_of_lifespan then
