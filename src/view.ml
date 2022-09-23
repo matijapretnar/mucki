@@ -83,6 +83,11 @@ and view_cat ?show_still_alive (cat : Model.cat) =
           elt "ul" (view_cats children);
         ]
 
+let round n =
+  let n = float_of_int n in
+  let k = 10. ** max 0. (ceil (log10 n) -. 2.0) in
+  int_of_float k * int_of_float (Float.round (n /. k))
+
 let view_pyramid population months =
   let view_month month =
     let count =
@@ -109,7 +114,7 @@ let view_pyramid population months =
     elt "tr"
       [
         elt "td" [ view_month month ];
-        elt "td" [ view_int total ];
+        elt "td" [ view_int (round total) ];
         elt "td" [ text cats ];
       ]
   in
@@ -231,11 +236,11 @@ let view_stage parameters = function
         List.init y (fun y -> Model.Year y)
         |> List.concat_map (Model.litter_months parameters)
       in
-      let dead_kittens = Model.dead_kittens parameters population in
+      let dead_kittens = round (Model.dead_kittens parameters population) in
       div
         [
           view_pyramid population (Model.Month 0 :: months);
-          view_text "V vsem tem času %s %d %s."
+          view_text "V vsem tem času %s okoli %d %s."
             (koncnica "je poginil" "sta poginila" "so poginili" "je poginilo"
                dead_kittens)
             dead_kittens
@@ -256,7 +261,10 @@ let view_stage parameters = function
           percentage_dropdown ~default:parameters.percentage_spayed
             (fun percentage_spayed ->
               Model.SetParameters { parameters with percentage_spayed });
-          view_text " mačk. Prej kot bi začeli, boljše bi bilo. ";
+          view_text
+            " mačk. Prej kot bi začeli, boljše bi bilo, saj je v vsem tem času \
+             poginilo okoli %d mladičkov."
+            (round (Model.dead_kittens parameters population));
           view_pyramid population (Model.Month 0 :: months);
           view_text
             "Če želite preizkušati različne scenarije, lahko spreminjate tudi \
