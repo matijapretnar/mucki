@@ -28,6 +28,7 @@ let percentage_dropdown ?default msg =
   dropdown ?default options Model.Percentage.to_string msg
 
 let view_month month = text (Model.month_string month)
+let view_month_year month = view_int (Model.month_year month)
 
 let koncnica ednina dvojina trojina mnozina n =
   match n mod 100 with
@@ -88,7 +89,7 @@ let round n =
   let k = 10. ** max 0. (ceil (log10 n) -. 2.0) in
   int_of_float k * int_of_float (Float.round (n /. k))
 
-let view_pyramid population months =
+let view_pyramid view_month population months =
   let view_month month =
     let count =
       population
@@ -229,13 +230,14 @@ let view_stage parameters = function
                 "Ker drevo postaja že malo nepregledno, raje poglejmo, koliko \
                  je bilo mačk v vsakem obdobju.";
             ];
-          view_pyramid population
+          view_pyramid view_month population
             (Model.Month 0 :: Model.litter_months parameters (Model.Year 0));
         ]
   | Model.Over { year = Model.Year y; population } ->
       let months =
-        List.init y (fun y -> Model.Year y)
-        |> List.concat_map (Model.litter_months parameters)
+        List.init y (fun y ->
+            Model.add_year (Model.Year (y + 1)) (Model.Month 0))
+        (* |> List.concat_map (Model.litter_months parameters) *)
       in
       div
         [
@@ -252,7 +254,9 @@ let view_stage parameters = function
              "Prej kot bi začeli, boljše bi bilo, saj je v vsem tem času \
               poginilo okoli %d mladičkov."
              (round (Model.dead_kittens parameters population)); *)
-          view_pyramid population (Model.Month 0 :: months);
+          view_pyramid
+            (fun month -> view_month_year month)
+            population (Model.Month 0 :: months);
           view_text
             "Če želite preizkušati različne scenarije, lahko spreminjate tudi \
              ostale parametre simulacije:";

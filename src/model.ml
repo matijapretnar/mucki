@@ -37,6 +37,7 @@ type month = Month of int
 
 let increase_month (Month m) d = Month (m + d)
 let add_year (Year y) (Month m) = Month (m + (12 * y))
+let month_year (Month m) = 2020 + ((m + 12) / 12)
 
 let month_string (Month m) =
   let month_names =
@@ -57,7 +58,7 @@ let month_string (Month m) =
   in
   Printf.sprintf "%s %d"
     (List.nth month_names ((m + 12) mod 12))
-    (2020 + ((m + 12) / 12))
+    (month_year (Month m))
 
 type litters_per_year = One | Two | Three
 
