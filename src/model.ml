@@ -140,6 +140,7 @@ let newborn_generation parameters mating_month population =
       parameters.percentage_of_kittens_who_survive_to_sexual_maturity
   in
   let surviving_females, surviving_males =
+    Random.self_init ();
     if Random.bool () then
       let surviving_males =
         Percentage.take_percentage males
