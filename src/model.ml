@@ -354,7 +354,6 @@ type stage =
       cats : cats;
     }
   | EndOfFirstYear of population
-  | EndOfOtherYears of { year : year; population : population }
   | Over of { year : year; population : population }
 
 let next_stage parameters names = function
@@ -382,24 +381,14 @@ let next_stage parameters names = function
       let names, cats = mate_cats parameters names mating_month cats in
       (names, FirstYearLitter { mating_month; mating_months_left; cats })
   | EndOfFirstYear population ->
-      let new_year = Year 2 in
-      let population = population_after_year parameters (Year 1) population in
-      (names, EndOfOtherYears { year = new_year; population })
-  | EndOfOtherYears { year; population } ->
-      let (Year y as new_year) = next_year year in
-      if y >= parameters.years_of_lifespan then
-        let new_year, new_population =
-          List.init 3 (fun i -> Year (y + i - 1))
-          |> List.fold_left
-               (fun (_, population) year ->
-                 (year, population_after_year parameters year population))
-               (year, population)
-        in
-
-        (names, Over { year = new_year; population = new_population })
-      else
-        let new_population = population_after_year parameters year population in
-        (names, EndOfOtherYears { year = new_year; population = new_population })
+      let new_year, new_population =
+        List.init 5 (fun y -> Year (y + 1))
+        |> List.fold_left
+             (fun (_, population) year ->
+               (year, population_after_year parameters year population))
+             (Year 0, population)
+      in
+      (names, Over { year = new_year; population = new_population })
   | Over _ as stage -> (names, stage)
 
 type model = {

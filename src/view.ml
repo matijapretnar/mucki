@@ -134,7 +134,7 @@ let forward_button_label = function
   | Model.FirstLitter { mating_months_left = []; _ }
   | Model.FirstYearLitter { mating_months_left = []; _ } ->
       "Če povzamemo"
-  | Model.EndOfFirstYear _ | Model.EndOfOtherYears _ -> "Na naslednje leto"
+  | Model.EndOfFirstYear _ -> "Kaj pa po nekaj letih?"
   | Model.Over _ -> "Po nekaj letih"
 
 let litters_per_year_dropdown parameters =
@@ -231,21 +231,6 @@ let view_stage parameters = function
             ];
           view_pyramid population
             (Model.Month 0 :: Model.litter_months parameters (Model.Year 0));
-        ]
-  | Model.EndOfOtherYears { year = Model.Year y; population } ->
-      let months =
-        List.init y (fun y -> Model.Year y)
-        |> List.concat_map (Model.litter_months parameters)
-      in
-      let dead_kittens = round (Model.dead_kittens parameters population) in
-      div
-        [
-          view_pyramid population (Model.Month 0 :: months);
-          view_text "V vsem tem času %s okoli %d %s."
-            (koncnica "je poginil" "sta poginila" "so poginili" "je poginilo"
-               dead_kittens)
-            dead_kittens
-            (koncnica "mucek" "mucka" "mucki" "muckov" dead_kittens);
         ]
   | Model.Over { year = Model.Year y; population } ->
       let months =
