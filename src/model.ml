@@ -341,8 +341,7 @@ and mate_cat parameters names mating_month cat =
   | _ -> (names, cat)
 
 type stage =
-  | Introduction of { female : cat; male : cat }
-  | FirstLitter of {
+  | Introduction of {
       female : cat;
       male : cat;
       children : cats;
@@ -358,19 +357,7 @@ type stage =
   | Over of { year : year; population : population }
 
 let next_stage parameters names = function
-  | Introduction { female; male } -> (
-      match mating_months parameters.litters_per_year with
-      | [] -> assert false
-      | mating_month :: mating_months_left -> (
-          let names, female = mate_cat parameters names mating_month female in
-          match female.gender with
-          | Female children ->
-              ( names,
-                FirstLitter
-                  { female; male; children; mating_month; mating_months_left }
-              )
-          | _ -> assert false))
-  | FirstLitter { female; male; mating_month; mating_months_left; _ } ->
+  | Introduction { female; male; mating_month; mating_months_left; _ } ->
       let cats = [ female; male ] in
       (names, FirstYearLitter { mating_month; mating_months_left; cats })
   | FirstYearLitter { mating_months_left = []; cats; _ } ->
@@ -399,31 +386,34 @@ type model = {
   history : stage list;
 }
 
-let init =
+let init parameters =
   let female_name, male_name, names = Names.initial in
-  {
-    parameters = default_parameters;
-    stage =
-      Introduction
-        {
-          female =
-            {
-              name = female_name;
-              month_born = Month (-11);
-              alive = true;
-              gender = Female [];
-            };
-          male =
-            {
-              name = male_name;
-              month_born = Month (-11);
-              alive = true;
-              gender = Male;
-            };
-        };
-    history = [];
-    names;
-  }
+  let female =
+    {
+      name = female_name;
+      month_born = Month (-11);
+      alive = true;
+      gender = Female [];
+    }
+  and male =
+    { name = male_name; month_born = Month (-11); alive = true; gender = Male }
+  in
+
+  match mating_months parameters.litters_per_year with
+  | [] -> assert false
+  | mating_month :: mating_months_left -> (
+      let names, female = mate_cat parameters names mating_month female in
+      match female.gender with
+      | Female children ->
+          {
+            parameters;
+            stage =
+              Introduction
+                { female; male; children; mating_month; mating_months_left };
+            history = [];
+            names;
+          }
+      | _ -> assert false)
 
 let next_model model =
   let names, stage = next_stage model.parameters model.names model.stage in
@@ -432,7 +422,7 @@ let next_model model =
 let recompute_model model =
   List.fold_left
     (fun model () -> next_model model)
-    { init with parameters = model.parameters }
+    (init model.parameters)
     (List.init (List.length model.history) (fun _ -> ()))
 
 type msg = SetParameters of parameters | Forward | Backward

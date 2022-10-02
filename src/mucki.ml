@@ -1,5 +1,7 @@
 let app =
-  Vdom.simple_app ~init:Model.init ~view:View.view ~update:Model.update ()
+  Vdom.simple_app
+    ~init:(Model.init Model.default_parameters)
+    ~view:View.view ~update:Model.update ()
 
 let run () =
   Vdom_blit.run app |> Vdom_blit.dom

@@ -129,12 +129,9 @@ let view_pyramid view_month population months =
 
 let forward_button_label = function
   | Model.Introduction _ -> "Na prvo leglo"
-  | Model.FirstLitter { mating_months_left = _ :: _; _ }
   | Model.FirstYearLitter { mating_months_left = _ :: _; _ } ->
       "Na naslednje leglo"
-  | Model.FirstLitter { mating_months_left = []; _ }
-  | Model.FirstYearLitter { mating_months_left = []; _ } ->
-      "Če povzamemo"
+  | Model.FirstYearLitter { mating_months_left = []; _ } -> "Če povzamemo"
   | Model.EndOfFirstYear _ -> "Kaj pa po nekaj letih?"
   | Model.Over _ -> "Po nekaj letih"
 
@@ -162,7 +159,7 @@ let percentage_of_kittens_who_survive_to_sexual_maturity_dropdown parameters =
         { parameters with percentage_of_kittens_who_survive_to_sexual_maturity })
 
 let view_stage parameters = function
-  | Model.Introduction { female; male } ->
+  | Model.Introduction { female; male; children; _ } ->
       div
         [
           elt "p"
@@ -179,40 +176,40 @@ let view_stage parameters = function
                 " na leto. (Če želite, lahko to in druge številke v zgodbi \
                  nastavite na svoje vrednosti.)";
             ];
+          elt "p"
+            ([
+               view_text "Po ";
+               text (string_of_int parameters.months_of_gestation);
+               text
+                 (koncnica " mesecu" " mesecih" " mesecih" " mesecih"
+                    parameters.months_of_gestation);
+               view_text " na svet primijavka%s "
+                 (koncnica "" "ta" "jo" "" parameters.kittens_per_litter);
+               kittens_per_litter_dropdown parameters;
+               view_text "muc%s:"
+                 (koncnica "ek" "ka" "ki" "kov" parameters.kittens_per_litter);
+             ]
+            @ view_list (view_cat_name ~show_still_alive:true) children
+            @ [
+                text ". ";
+                view_text "Naslednj%s %d mesec%s odraščanja %s, %s "
+                  (koncnica "i" "a" "i" "ih" parameters.months_before_mature)
+                  parameters.months_before_mature
+                  (koncnica "" "a" "i" "ev" parameters.months_before_mature)
+                  (koncnica "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
+                     parameters.months_before_mature)
+                  (if
+                   parameters
+                     .percentage_of_kittens_who_survive_to_sexual_maturity
+                   = Model.Percentage.of_int 100
+                  then "a odraslost doživi"
+                  else "zato odraslost doživi le");
+                percentage_of_kittens_who_survive_to_sexual_maturity_dropdown
+                  parameters;
+                text "mladičkov:";
+              ]
+            @ view_list (view_cat_name ~show_still_alive:false) children);
         ]
-  | Model.FirstLitter { children; _ } ->
-      elt "p"
-        ([
-           view_text "Po ";
-           text (string_of_int parameters.months_of_gestation);
-           text
-             (koncnica " mesecu" " mesecih" " mesecih" " mesecih"
-                parameters.months_of_gestation);
-           view_text " na svet primijavka%s "
-             (koncnica "" "ta" "jo" "" parameters.kittens_per_litter);
-           kittens_per_litter_dropdown parameters;
-           view_text "muc%s:"
-             (koncnica "ek" "ka" "ki" "kov" parameters.kittens_per_litter);
-         ]
-        @ view_list (view_cat_name ~show_still_alive:true) children
-        @ [
-            text ". ";
-            view_text "Naslednj%s %d mesec%s odraščanja %s, %s "
-              (koncnica "i" "a" "i" "ih" parameters.months_before_mature)
-              parameters.months_before_mature
-              (koncnica "" "a" "i" "ev" parameters.months_before_mature)
-              (koncnica "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
-                 parameters.months_before_mature)
-              (if
-               parameters.percentage_of_kittens_who_survive_to_sexual_maturity
-               = Model.Percentage.of_int 100
-              then "a odraslost doživi"
-              else "zato odraslost doživi le");
-            percentage_of_kittens_who_survive_to_sexual_maturity_dropdown
-              parameters;
-            text "mladičkov:";
-          ]
-        @ view_list (view_cat_name ~show_still_alive:false) children)
   | Model.FirstYearLitter { cats; _ } ->
       elt "p"
         [
