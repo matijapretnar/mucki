@@ -59,9 +59,8 @@ let view_cat_name ?(show_still_alive = false) (cat : Model.cat) =
   let alive = cat.alive || show_still_alive in
   let color, emoji =
     match cat.gender with
-    | Model.Male when alive -> ("blue", male_image)
-    | Model.Female _ when alive -> ("red", female_image)
-    | _ -> ("gray", "☠️")
+    | Model.Male -> ((if alive then "blue" else "gray"), male_image)
+    | Model.Female _ -> ((if alive then "red" else "gray"), female_image)
   in
   view_rich_string ~color ~strikethrough:(not alive) (emoji ^ cat.name)
 
@@ -128,7 +127,7 @@ let view_pyramid view_month population months =
     :: List.map view_month months)
 
 let forward_button_label = function
-  | Model.Introduction _ -> "Na prvo leglo"
+  | Model.Introduction _ -> "Na družinsko drevo"
   | Model.FirstYearLitter { mating_months_left = _ :: _; _ } ->
       "Na naslednje leglo"
   | Model.FirstYearLitter { mating_months_left = []; _ } -> "Če povzamemo"
@@ -209,24 +208,28 @@ let view_stage parameters = function
                 text "mladičkov:";
               ]
             @ view_list (view_cat_name ~show_still_alive:false) children);
+          elt "p"
+            [
+              text
+                "Da si bomo lažje predstavljali, si vse skupaj poglejmo še v \
+                 obliki družinskega drevesa.";
+            ];
         ]
-  | Model.FirstYearLitter { cats; _ } ->
+  | Model.FirstYearLitter { cats; mating_months_left; _ } ->
       elt "p"
         [
-          text
-            "Poglejmo si, kakšno je videti družinsko drevo po vsakem leglu v \
-             prvem letu.";
+          text "Pri drevesu je dovolj, da se osredotočimo le na samičke.";
           elt "ul" (view_cats cats);
+          text
+            (match mating_months_left with
+            | [] ->
+                "Ker drevo postaja že malo nepregledno, raje poglejmo, koliko \
+                 je bilo mačk v vsakem obdobju."
+            | _ :: _ -> "");
         ]
   | Model.EndOfFirstYear population ->
       div
         [
-          elt "p"
-            [
-              text
-                "Ker drevo postaja že malo nepregledno, raje poglejmo, koliko \
-                 je bilo mačk v vsakem obdobju.";
-            ];
           view_pyramid view_month population
             (Model.Month 0 :: Model.litter_months parameters (Model.Year 0));
         ]
