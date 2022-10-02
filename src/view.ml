@@ -126,18 +126,16 @@ let view_pyramid population months =
        [ elt "th" [ text "mesec" ]; elt "th" [ text "skupaj" ]; elt "td" [] ]
     :: List.map view_month months)
 
-let view_stage_title (parameters : Model.parameters) = function
-  | Model.Introduction _ -> view_month (Model.Month 1)
-  | Model.FirstLitter { mating_month; _ } ->
-      view_month
-        (Model.increase_month mating_month parameters.months_of_gestation)
-  | Model.FirstYearLitter { mating_month; _ } ->
-      view_month
-        (Model.increase_month mating_month parameters.months_of_gestation)
-  | Model.EndOfFirstYear _ -> text "Ob koncu prvega leta"
-  | Model.EndOfOtherYears { year = Year y; _ } ->
-      elt "span" [ text "Ob koncu leta "; view_year (Year (y - 1)) ]
-  | Model.Over _ -> text "Po nekaj letih"
+let forward_button_label = function
+  | Model.Introduction _ -> "Na prvo leglo"
+  | Model.FirstLitter { mating_months_left = _ :: _; _ }
+  | Model.FirstYearLitter { mating_months_left = _ :: _; _ } ->
+      "Na naslednje leglo"
+  | Model.FirstLitter { mating_months_left = []; _ }
+  | Model.FirstYearLitter { mating_months_left = []; _ } ->
+      "Če povzamemo"
+  | Model.EndOfFirstYear _ | Model.EndOfOtherYears _ -> "Na naslednje leto"
+  | Model.Over _ -> "Po nekaj letih"
 
 let litters_per_year_dropdown parameters =
   dropdown ~default:parameters.Model.litters_per_year
@@ -266,9 +264,9 @@ let view_stage parameters = function
               Model.SetParameters { parameters with percentage_spayed });
           view_text " mačk.";
           (* view_text
-            "Prej kot bi začeli, boljše bi bilo, saj je v vsem tem času \
-             poginilo okoli %d mladičkov."
-            (round (Model.dead_kittens parameters population)); *)
+             "Prej kot bi začeli, boljše bi bilo, saj je v vsem tem času \
+              poginilo okoli %d mladičkov."
+             (round (Model.dead_kittens parameters population)); *)
           view_pyramid population (Model.Month 0 :: months);
           view_text
             "Če želite preizkušati različne scenarije, lahko spreminjate tudi \
@@ -313,32 +311,20 @@ let view (model : Model.model) =
           value "Nazaj";
           class_ "button";
         ]
-  and heading =
-    elt "p"
-      ~a:[ class_ "subtitle is-5" ]
-      [ view_stage_title model.parameters model.stage ]
   and forward_button =
     input []
       ~a:
         [
           onclick (fun _ -> Model.Forward);
           type_button;
-          value "Naprej";
+          value (forward_button_label model.stage);
           class_ "button";
         ]
   in
 
-  let panel_items =
-    (if show_backward model then [ backward_button ] else [])
-    @ [ heading ]
-    @ if show_forward model then [ forward_button ] else []
-  in
   div
-    [
-      div
-        ~a:[ class_ "level" ]
-        (List.map
-           (fun panel_item -> div ~a:[ class_ "level-item" ] [ panel_item ])
-           panel_items);
-      div ~a:[ class_ "content" ] [ view_stage model.parameters model.stage ];
-    ]
+    ((if show_backward model then [ backward_button ] else [])
+    @ [
+        div ~a:[ class_ "content" ] [ view_stage model.parameters model.stage ];
+      ]
+    @ if show_forward model then [ forward_button ] else [])
