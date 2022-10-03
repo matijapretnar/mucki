@@ -1,5 +1,3 @@
-Random.self_init ()
-
 type t = { female : string list; male : string list }
 
 let premesaj lst =
