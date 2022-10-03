@@ -56,7 +56,7 @@ let month_string (Month m) =
       "december";
     ]
   in
-  Printf.sprintf "%s %d"
+  Printf.sprintf "%s %d"
     (List.nth month_names ((m + 12) mod 12))
     (month_year (Month m))
 
@@ -82,7 +82,7 @@ let default_parameters =
     years_of_lifespan = 4;
     kittens_per_litter = 6;
     percentage_of_female_kittens = Percentage.of_int 50;
-    percentage_of_kittens_who_survive_to_sexual_maturity = Percentage.of_int 50;
+    percentage_of_kittens_who_survive_to_sexual_maturity = Percentage.of_int 40;
     percentage_spayed = Percentage.of_int 30;
     spaying_started = 4;
   }

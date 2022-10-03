@@ -59,8 +59,9 @@ let view_cat_name ?(show_still_alive = false) (cat : Model.cat) =
   let alive = cat.alive || show_still_alive in
   let color, emoji =
     match cat.gender with
-    | Model.Male -> ((if alive then "blue" else "gray"), male_image)
-    | Model.Female _ -> ((if alive then "red" else "gray"), female_image)
+    | Model.Male -> ((if alive then "rgb(33, 208, 208)" else "gray"), male_image)
+    | Model.Female _ ->
+        ((if alive then "rgb(255, 159, 28)" else "gray"), female_image)
   in
   view_rich_string ~color ~strikethrough:(not alive) (emoji ^ cat.name)
 
@@ -88,7 +89,7 @@ let round n =
   let k = 10. ** max 0. (ceil (log10 n) -. 2.0) in
   int_of_float k * int_of_float (Float.round (n /. k))
 
-let view_pyramid view_month population months =
+let view_pyramid ?(by_month = false) population months =
   let view_month month =
     let count =
       population
@@ -99,38 +100,42 @@ let view_pyramid view_month population months =
     let total = round (count.surviving_females + count.surviving_males) in
 
     let shelter_capacity = 200 in
+    let shelters =
+      (total / shelter_capacity)
+      + if total mod shelter_capacity = 0 then 0 else 1
+    in
     let cats =
       if total < shelter_capacity then
         List.init count.surviving_females (fun _ -> female_image)
         @ List.init count.surviving_males (fun _ -> male_image)
         |> Names.premesaj |> String.concat ""
-      else
-        let stevilo =
-          (total / shelter_capacity)
-          + if total mod shelter_capacity = 0 then 0 else 1
-        in
-        (List.init stevilo (fun _ -> "🏨") |> String.concat "")
-        ^ Printf.sprintf " - %d %s Gmajnice" stevilo
-            (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" stevilo)
+      else List.init shelters (fun _ -> "🏨") |> String.concat ""
+    in
+    let display_total =
+      Printf.sprintf "%d %s" total
+        (koncnica "mačka" "mački" "mačke" "mačk" total)
+      ^
+      if total > shelter_capacity then
+        Printf.sprintf " oz. %d %s Gmajnice" shelters
+          (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" shelters)
+      else ""
     in
 
     elt "tr"
       [
-        elt "td" [ view_month month ];
-        elt "td" [ view_int (round total) ];
+        elt "th"
+          [ (if by_month then view_month month else view_month_year month) ];
+        elt "td" [ text display_total ];
         elt "td" [ text cats ];
       ]
   in
-  elt "table"
-    (elt "tr"
-       [ elt "th" [ text "mesec" ]; elt "th" [ text "skupaj" ]; elt "td" [] ]
-    :: List.map view_month months)
+  elt "table" (List.map view_month months)
 
 let forward_button_label = function
   | Model.Introduction _ -> "Na družinsko drevo"
   | Model.FirstYearLitter { mating_months_left = _ :: _; _ } ->
       "Na naslednje leglo"
-  | Model.FirstYearLitter { mating_months_left = []; _ } -> "Če povzamemo"
+  | Model.FirstYearLitter { mating_months_left = []; _ } -> "Na povzetek"
   | Model.EndOfFirstYear _ -> "Kaj pa po nekaj letih?"
   | Model.Over _ -> "Po nekaj letih"
 
@@ -163,21 +168,21 @@ let view_stage parameters = function
         [
           elt "p"
             [
+              text "Ali vedno velja ";
+              elt "strong" [ text "1 + 1 = 2" ];
               text
-                "Ali je 1 + 1 vedno enako 2? V naravi ne! Nekoč sta bila 2 \
-                 potepuha: mačka ";
+                "? Videli bomo, da v naravi ne! Pa vzemimo dva potepuha:\n\
+                \                 1 mačka ";
               view_cat_name female;
-              text " in njen izbranec ";
+              text " in 1 maček ";
               view_cat_name male;
-              text ". Mačke imajo mladiče ";
-              litters_per_year_dropdown parameters;
-              text
-                " na leto. (Če želite, lahko to in druge številke v zgodbi \
-                 nastavite na svoje vrednosti.)";
+              text ".";
             ];
           elt "p"
             ([
-               view_text "Po ";
+               view_text "Ker imajo mačke mladiče ";
+               litters_per_year_dropdown parameters;
+               text " na leto, po ";
                text (string_of_int parameters.months_of_gestation);
                text
                  (koncnica " mesecu" " mesecih" " mesecih" " mesecih"
@@ -189,79 +194,96 @@ let view_stage parameters = function
                  (koncnica "ek" "ka" "ki" "kov" parameters.kittens_per_litter);
              ]
             @ view_list (view_cat_name ~show_still_alive:true) children
-            @ [
-                text ". ";
-                view_text "Naslednj%s %d mesec%s odraščanja %s, %s "
-                  (koncnica "i" "a" "i" "ih" parameters.months_before_mature)
-                  parameters.months_before_mature
-                  (koncnica "" "a" "i" "ev" parameters.months_before_mature)
-                  (koncnica "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
-                     parameters.months_before_mature)
-                  (if
-                   parameters
-                     .percentage_of_kittens_who_survive_to_sexual_maturity
-                   = Model.Percentage.of_int 100
-                  then "a odraslost doživi"
-                  else "zato odraslost doživi le");
-                percentage_of_kittens_who_survive_to_sexual_maturity_dropdown
-                  parameters;
-                text "mladičkov:";
-              ]
+            @ [ text ". " ]);
+          elt "p"
+            ([
+               view_text "Naslednj%s %d mesec%s odraščanja %s, %s "
+                 (koncnica "i" "a" "i" "ih" parameters.months_before_mature)
+                 parameters.months_before_mature
+                 (koncnica "" "a" "i" "ev" parameters.months_before_mature)
+                 (koncnica "ni lahek" "nista lahka" "niso lahki" "ni lahkih"
+                    parameters.months_before_mature)
+                 (if
+                  parameters
+                    .percentage_of_kittens_who_survive_to_sexual_maturity
+                  = Model.Percentage.of_int 100
+                 then "a odraslost doživi"
+                 else "zato odraslost doživi le");
+               percentage_of_kittens_who_survive_to_sexual_maturity_dropdown
+                 parameters;
+               text "mladičkov:";
+             ]
             @ view_list (view_cat_name ~show_still_alive:false) children);
           elt "p"
             [
               text
-                "Da si bomo lažje predstavljali, si vse skupaj poglejmo še v \
-                 obliki družinskega drevesa.";
+                "Kot bomo videli, bo potomcev kmalu precej veliko, zato si \
+                 narišimo kar njihovo drevo.";
             ];
         ]
   | Model.FirstYearLitter { cats; mating_months_left; _ } ->
       elt "p"
         [
-          text "Pri drevesu je dovolj, da se osredotočimo le na samičke.";
+          text "Pri drevesu bomo potomce risali kar pod njihovo mamo:";
           elt "ul" (view_cats cats);
           text
             (match mating_months_left with
             | [] ->
                 "Ker drevo postaja že malo nepregledno, raje poglejmo, koliko \
                  je bilo mačk v vsakem obdobju."
-            | _ :: _ -> "");
+            | _ :: _ -> "Seveda to ni zadnje leglo v tem letu…");
         ]
   | Model.EndOfFirstYear population ->
       div
         [
-          view_pyramid view_month population
+          elt "p"
+            [ text "Na začetku in ob vsakem leglu so bile številke sledeče:" ];
+          view_pyramid ~by_month:true population
             (Model.Month 0 :: Model.litter_months parameters (Model.Year 0));
         ]
   | Model.Over { year = Model.Year y; population } ->
       let months =
-        List.init y (fun y ->
+        List.init (y + 1) (fun y ->
             Model.add_year (Model.Year (y + 1)) (Model.Month 0))
-        (* |> List.concat_map (Model.litter_months parameters) *)
       in
+      let total = population |> Model.count_size |> Model.total in
       div
         [
-          text "Ker vidimo, da brez omejitev število mačk raste, po ";
-          int_dropdown ~default:parameters.spaying_started 0
-            parameters.years_of_lifespan (fun spaying_started ->
-              Model.SetParameters { parameters with spaying_started });
-          text " letih začnemo s sterilizacijo, ki doseže ";
-          percentage_dropdown ~default:parameters.percentage_spayed
-            (fun percentage_spayed ->
-              Model.SetParameters { parameters with percentage_spayed });
-          view_text " mačk.";
-          (* view_text
-             "Prej kot bi začeli, boljše bi bilo, saj je v vsem tem času \
-              poginilo okoli %d mladičkov."
-             (round (Model.dead_kittens parameters population)); *)
-          view_pyramid
-            (fun month -> view_month_year month)
-            population (Model.Month 0 :: months);
-          view_text
-            "Če želite preizkušati različne scenarije, lahko spreminjate tudi \
-             ostale parametre simulacije:";
+          text
+            "Če zgodbo nadaljujemo še nekaj let, pa dobimo še večje številke. ";
+          text "Tako lahko zaključimo, da je ";
+          elt "strong" [ view_text "1 + 1 = %d!" total ];
+          view_pyramid population (Model.Month 0 :: months);
+          view_text "Poleg vsega pa je v tem času poginilo tudi %d mladičkov."
+            (Model.dead_kittens parameters population);
+          text
+            "Najboljši način, da tako umirimo rast kot preprečimo veliko \
+             nepotrebnih smrti, je sterilizacija. Preizkusite spodnje možnosti \
+             in se sami prepričajte o tem, kakšen vpliv ima.";
           elt "table"
             [
+              elt "tr"
+                [
+                  elt "th" [ text "po koliko letih začnemo s sterilizacijo" ];
+                  elt "td"
+                    [
+                      int_dropdown ~default:parameters.spaying_started 0
+                        parameters.years_of_lifespan (fun spaying_started ->
+                          Model.SetParameters
+                            { parameters with spaying_started });
+                    ];
+                ];
+              elt "tr"
+                [
+                  elt "th" [ text "delež steriliziranih mačk" ];
+                  elt "td"
+                    [
+                      percentage_dropdown ~default:parameters.percentage_spayed
+                        (fun percentage_spayed ->
+                          Model.SetParameters
+                            { parameters with percentage_spayed });
+                    ];
+                ];
               elt "tr"
                 [
                   elt "th" [ text "število legel na leto" ];
@@ -298,7 +320,7 @@ let view (model : Model.model) =
           onclick (fun _ -> Model.Backward);
           type_button;
           value "Nazaj";
-          class_ "button";
+          class_ "button is-pulled-left is-secondary";
         ]
   and forward_button =
     input []
@@ -307,13 +329,11 @@ let view (model : Model.model) =
           onclick (fun _ -> Model.Forward);
           type_button;
           value (forward_button_label model.stage);
-          class_ "button";
+          class_ "button is-pulled-right is-primary";
         ]
   in
 
   div
-    ((if show_backward model then [ backward_button ] else [])
-    @ [
-        div ~a:[ class_ "content" ] [ view_stage model.parameters model.stage ];
-      ]
+    ([ div ~a:[ class_ "content" ] [ view_stage model.parameters model.stage ] ]
+    @ (if show_backward model then [ backward_button ] else [])
     @ if show_forward model then [ forward_button ] else [])

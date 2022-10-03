@@ -16,6 +16,49 @@
     font-weight: 700
 }
 
+body {
+    /* background-color: rgb(245, 245, 245); */
+}
+
 * {
     font-family: "Basier Circle", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif !important;
+}
+
+.content {
+    color: rgb(20, 33, 61);
+    font-size: 20pt;
+}
+
+.button {
+    background: none;
+    display: flex;
+    border-radius: 10px;
+    border-width: 3px;
+    border-color: rgb(20, 33, 61);
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 20px;
+    place-content: normal center;
+    height: 66px;
+    place-items: center normal;
+    font-family: "Basier Circle", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif !important;
+}
+
+.is-primary {
+    background: rgb(20, 33, 61) !important;
+}
+
+.is-primary:hover {
+    background: rgb(255, 159, 28) !important;
+}
+
+.button:hover {
+    border-color: rgb(255, 159, 28);
+    color: rgb(255, 159, 28);
+}
+
+.container {
+    max-width: 720px;
+    height: 100%;
+
 }
