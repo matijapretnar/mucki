@@ -37,27 +37,27 @@ type month = Month of int
 
 let increase_month (Month m) d = Month (m + d)
 let add_year (Year y) (Month m) = Month (m + (12 * y))
-let month_year (Month m) = 2020 + ((m + 12) / 12)
+let month_year (Month m) = 2021 + ((m + 12) / 12)
 
-let month_string (Month m) =
+let month_string ?(case = 0) (Month m) =
   let month_names =
-    [
-      "januar";
-      "februar";
-      "marec";
-      "april";
-      "maj";
-      "junij";
-      "julij";
-      "avgust";
-      "september";
-      "oktober";
-      "november";
-      "december";
-    ]
+    [|
+      [| "januar"; "januarja" |];
+      [| "februar"; "februarja" |];
+      [| "marec"; "marca" |];
+      [| "april"; "aprila" |];
+      [| "maj"; "maja" |];
+      [| "junij"; "junija" |];
+      [| "julij"; "julija" |];
+      [| "avgust"; "avgusta" |];
+      [| "september"; "septembra" |];
+      [| "oktober"; "oktobra" |];
+      [| "november"; "novembra" |];
+      [| "december"; "decembra" |];
+    |]
   in
   Printf.sprintf "%s %d"
-    (List.nth month_names ((m + 12) mod 12))
+    (Array.get month_names ((m + 12) mod 12)).(case)
     (month_year (Month m))
 
 type litters_per_year = One | Two | Three

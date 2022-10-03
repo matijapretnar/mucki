@@ -27,7 +27,7 @@ let percentage_dropdown ?default msg =
   let options = List.init 11 (fun i -> Model.Percentage.of_int (10 * i)) in
   dropdown ?default options Model.Percentage.to_string msg
 
-let view_month month = text (Model.month_string month)
+let view_month ?case month = text (Model.month_string ?case month)
 let view_month_year month = view_int (Model.month_year month)
 
 let koncnica ednina dvojina trojina mnozina n =
@@ -65,14 +65,16 @@ let view_cat_name ?(show_still_alive = false) (cat : Model.cat) =
   in
   view_rich_string ~color ~strikethrough:(not alive) (emoji ^ cat.name)
 
+let sort_cats = List.sort (fun cat1 cat2 -> compare cat1.Model.name cat2.name)
+
 let rec view_cats ?show_still_alive cats =
-  cats
-  |> List.sort (fun cat1 cat2 -> compare cat1.Model.name cat2.name)
+  cats |> sort_cats
   |> List.map (fun cat -> elt "li" [ view_cat ?show_still_alive cat ])
 
 and view_cat ?show_still_alive (cat : Model.cat) =
   let view_born =
-    elt "small" [ text " "; text (Model.month_string cat.month_born) ]
+    elt "small"
+      [ text " roj. "; text (Model.month_string ~case:1 cat.month_born) ]
   in
   match cat.gender with
   | Model.Male -> elt "span" [ view_cat_name ?show_still_alive cat; view_born ]
@@ -121,15 +123,18 @@ let view_pyramid ?(by_month = false) population months =
       else ""
     in
 
-    elt "tr"
-      [
-        elt "th"
-          [ (if by_month then view_month month else view_month_year month) ];
-        elt "td" [ text display_total ];
-        elt "td" [ text cats ];
-      ]
+    [
+      elt "tr"
+        [
+          elt "th"
+            [ (if by_month then view_month month else view_month_year month) ];
+          elt "td" [ text display_total ];
+        ];
+      elt "tr" [ elt "td" ~a:[ attr "colspan" "2" ] [ text cats ] ];
+    ]
   in
-  elt "table" (List.map view_month months)
+
+  elt "table" (List.concat_map view_month months)
 
 let forward_button_label = function
   | Model.Introduction _ -> "Na družinsko drevo"
@@ -187,13 +192,17 @@ let view_stage parameters = function
                text
                  (koncnica " mesecu" " mesecih" " mesecih" " mesecih"
                     parameters.months_of_gestation);
-               view_text " na svet primijavka%s "
-                 (koncnica "" "ta" "jo" "" parameters.kittens_per_litter);
+               view_text " na svet %s "
+                 (koncnica "primijavka" "primijavkata" "primijavkajo"
+                    "primijavka" parameters.kittens_per_litter);
                kittens_per_litter_dropdown parameters;
-               view_text "muc%s:"
-                 (koncnica "ek" "ka" "ki" "kov" parameters.kittens_per_litter);
+               view_text " %s: "
+                 (koncnica "mucek" "mucka" "mucki" "muckov"
+                    parameters.kittens_per_litter);
              ]
-            @ view_list (view_cat_name ~show_still_alive:true) children
+            @ view_list
+                (view_cat_name ~show_still_alive:true)
+                (sort_cats children)
             @ [ text ". " ]);
           elt "p"
             ([
@@ -213,7 +222,9 @@ let view_stage parameters = function
                  parameters;
                text "mladičkov:";
              ]
-            @ view_list (view_cat_name ~show_still_alive:false) children);
+            @ view_list
+                (view_cat_name ~show_still_alive:false)
+                (sort_cats children));
           elt "p"
             [
               text
@@ -254,7 +265,7 @@ let view_stage parameters = function
           text "Tako lahko zaključimo, da je ";
           elt "strong" [ view_text "1 + 1 = %d!" total ];
           view_pyramid population (Model.Month 0 :: months);
-          view_text "Poleg vsega pa je v tem času poginilo tudi %d mladičkov."
+          view_text "Poleg vsega pa je v tem času poginilo tudi %d mladičkov. "
             (Model.dead_kittens parameters population);
           text
             "Najboljši način, da tako umirimo rast kot preprečimo veliko \
