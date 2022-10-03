@@ -1,0 +1,21 @@
+@font-face {
+    font-family: 'Basier Circle';
+    src: url('https://www.zavetisce-ljubljana.si/assets/fonts/basiercircle-regular-webfont.woff2') format('woff2');
+    font-weight: 400
+}
+
+@font-face {
+    font-family: 'Basier Circle';
+    src: url('https://www.zavetisce-ljubljana.si/assets/fonts/basiercircle-semibold-webfont.woff2') format('woff2');
+    font-weight: 550
+}
+
+@font-face {
+    font-family: 'Basier Circle';
+    src: url('https://www.zavetisce-ljubljana.si/assets/fonts/basiercircle-bold-webfont.woff2') format('woff2');
+    font-weight: 700
+}
+
+* {
+    font-family: "Basier Circle", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif !important;
+}
