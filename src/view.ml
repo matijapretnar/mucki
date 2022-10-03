@@ -118,7 +118,7 @@ let view_pyramid ?(by_month = false) population months =
         (koncnica "mačka" "mački" "mačke" "mačk" total)
       ^
       if total > shelter_capacity then
-        Printf.sprintf " oz. %d %s Gmajnice" shelters
+        Printf.sprintf " oz. %d %s Ljubljana" shelters
           (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" shelters)
       else ""
     in
