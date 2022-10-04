@@ -66,12 +66,13 @@ type parameters = {
   litters_per_year : litters_per_year;
   months_of_gestation : int;
   months_before_mature : int;
-  years_of_lifespan : int;
+  months_of_lifespan : int;
   kittens_per_litter : int;
   percentage_of_female_kittens : Percentage.t;
   percentage_of_kittens_who_survive_to_sexual_maturity : Percentage.t;
   percentage_spayed : Percentage.t;
   spaying_started : int;
+  years_of_simulation : int;
 }
 
 let default_parameters =
@@ -79,12 +80,13 @@ let default_parameters =
     litters_per_year = Three;
     months_of_gestation = 2;
     months_before_mature = 4;
-    years_of_lifespan = 4;
+    months_of_lifespan = 48;
     kittens_per_litter = 6;
     percentage_of_female_kittens = Percentage.of_int 50;
     percentage_of_kittens_who_survive_to_sexual_maturity = Percentage.of_int 40;
     percentage_spayed = Percentage.of_int 30;
     spaying_started = 4;
+    years_of_simulation = 5;
   }
 
 let mating_months = function
@@ -99,8 +101,7 @@ let litter_months parameters year =
 
 let is_sexually_active parameters mating_month month_born =
   increase_month month_born parameters.months_before_mature <= mating_month
-  && mating_month
-     <= increase_month month_born (12 * parameters.years_of_lifespan)
+  && mating_month <= increase_month month_born parameters.months_of_lifespan
 
 type count = {
   surviving_females : int;
@@ -370,7 +371,7 @@ let next_stage parameters names = function
       (names, FirstYearLitter { mating_month; mating_months_left; cats })
   | EndOfFirstYear population ->
       let new_year, new_population =
-        List.init 5 (fun y -> Year (y + 1))
+        List.init parameters.years_of_simulation (fun y -> Year (y + 1))
         |> List.fold_left
              (fun (_, population) year ->
                (year, population_after_year parameters year population))

@@ -4,6 +4,7 @@ let app =
     ~view:View.view ~update:Model.update ()
 
 let run () =
+  Js_browser.Document.set_title Js_browser.document "Mačja piramida";
   Vdom_blit.run app |> Vdom_blit.dom
   |> Js_browser.Element.append_child
        (match

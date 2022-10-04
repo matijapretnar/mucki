@@ -91,33 +91,44 @@ let round n =
   let k = 10. ** max 0. (ceil (log10 n) -. 2.0) in
   int_of_float k * int_of_float (Float.round (n /. k))
 
-let view_pyramid ?(by_month = false) population months =
+let view_pyramid ?(by_month = false) parameters population months =
   let view_month month =
     let count =
       population
       |> List.filter (fun (generation : Model.generation) ->
-             generation.month_born <= month)
+             generation.month_born <= month
+             && month
+                <= Model.increase_month generation.month_born
+                     parameters.Model.months_of_lifespan)
       |> Model.count_size
     in
     let total = round (count.surviving_females + count.surviving_males) in
 
-    let shelter_capacity = 200 in
+    let shelter_capacity = 200 and country_capacity = 400000 in
     let shelters =
       (total / shelter_capacity)
       + if total mod shelter_capacity = 0 then 0 else 1
+    and countries =
+      (total / country_capacity)
+      + if total mod country_capacity = 0 then 0 else 1
     in
     let cats =
       if total < shelter_capacity then
         List.init count.surviving_females (fun _ -> female_image)
         @ List.init count.surviving_males (fun _ -> male_image)
         |> Names.premesaj |> String.concat ""
-      else List.init shelters (fun _ -> "🏨") |> String.concat ""
+      else if total < country_capacity then
+        List.init shelters (fun _ -> "🏨") |> String.concat ""
+      else List.init countries (fun _ -> "🇸🇮") |> String.concat ""
     in
     let display_total =
       Printf.sprintf "%d %s" total
         (koncnica "mačka" "mački" "mačke" "mačk" total)
       ^
-      if total > shelter_capacity then
+      if total > country_capacity then
+        Printf.sprintf " oz. %d %s" countries
+          (koncnica "Slovenijo" "Sloveniji" "Slovenije" "Slovenij" countries)
+      else if total > shelter_capacity then
         Printf.sprintf " oz. %d %s Ljubljana" shelters
           (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" shelters)
       else ""
@@ -249,7 +260,7 @@ let view_stage parameters = function
         [
           elt "p"
             [ text "Na začetku in ob vsakem leglu so bile številke sledeče:" ];
-          view_pyramid ~by_month:true population
+          view_pyramid ~by_month:true parameters population
             (Model.Month 0 :: Model.litter_months parameters (Model.Year 0));
         ]
   | Model.Over { year = Model.Year y; population } ->
@@ -263,8 +274,8 @@ let view_stage parameters = function
           text
             "Če zgodbo nadaljujemo še nekaj let, pa dobimo še večje številke. ";
           text "Tako lahko zaključimo, da je ";
-          elt "strong" [ view_text "1 + 1 = %d!" total ];
-          view_pyramid population (Model.Month 0 :: months);
+          elt "strong" [ view_text "1 + 1 = %d!" (round total) ];
+          view_pyramid parameters population (Model.Month 0 :: months);
           view_text "Poleg vsega pa je v tem času poginilo tudi %d mladičkov. "
             (Model.dead_kittens parameters population);
           text
@@ -279,7 +290,7 @@ let view_stage parameters = function
                   elt "td"
                     [
                       int_dropdown ~default:parameters.spaying_started 0
-                        parameters.years_of_lifespan (fun spaying_started ->
+                        parameters.years_of_simulation (fun spaying_started ->
                           Model.SetParameters
                             { parameters with spaying_started });
                     ];
@@ -312,6 +323,17 @@ let view_stage parameters = function
                     [
                       percentage_of_kittens_who_survive_to_sexual_maturity_dropdown
                         parameters;
+                    ];
+                ];
+              elt "tr"
+                [
+                  elt "th" [ text "število let opazovanja" ];
+                  elt "td"
+                    [
+                      int_dropdown ~default:parameters.years_of_simulation 0 10
+                        (fun years_of_simulation ->
+                          Model.SetParameters
+                            { parameters with years_of_simulation });
                     ];
                 ];
             ];
