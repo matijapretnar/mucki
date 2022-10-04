@@ -37,6 +37,14 @@ let koncnica ednina dvojina trojina mnozina n =
   | 3 | 4 -> trojina
   | _ -> mnozina
 
+let koncnica_niza ednina dvojina trojina mnozina n =
+  let str = "00000" ^ n in
+  match String.sub str (String.length str - 3) 3 with
+  | "001" -> ednina
+  | "002" -> dvojina
+  | "003" | "004" -> trojina
+  | _ -> mnozina
+
 let mesecev n = "mesec" ^ koncnica "" "a" "e" "ev" n
 
 let rec view_list view_element = function
@@ -87,9 +95,23 @@ and view_cat ?show_still_alive (cat : Model.cat) =
         ]
 
 let round n =
-  let n = n in
-  let k = 10. ** max 0. (ceil (log10 n) -. 2.0) in
-  int_of_float k * int_of_float (Float.round (n /. k))
+  let thousands = floor (log10 n /. 3.) -. 1. in
+  let m = int_of_float (n /. (1000. ** thousands))
+  and e = int_of_float thousands in
+  if e >= 1 then
+    if m >= 1000 then
+      let o = m mod 1000 in
+      let o =
+        if o < 10 then Format.sprintf "00%d" o
+        else if o < 100 then Format.sprintf "0%d" o
+        else Format.sprintf "%d" o
+      in
+      Format.sprintf "%d,%s,%s" (m / 1000) o
+        (String.concat "," (List.init e (fun _ -> "000")))
+    else
+      Format.sprintf "%d,%s" m
+        (String.concat "," (List.init e (fun _ -> "000")))
+  else string_of_int (int_of_float n)
 
 let view_pyramid ?(by_month = false) parameters population months =
   let view_month month =
@@ -102,25 +124,21 @@ let view_pyramid ?(by_month = false) parameters population months =
                      parameters.Model.months_of_lifespan)
       |> Model.count_size
     in
-    let females = round count.surviving_females
-    and males = round count.surviving_males in
-    let total = females + males in
+    let females = int_of_float count.surviving_females
+    and males = int_of_float count.surviving_males in
+    let total = count.surviving_males +. count.surviving_females in
 
-    let shelter_capacity = 200
-    and country_capacity = 400000
-    and continent_capacity = 7000000
-    and planet_capacity = 300000000 in
-    let shelters =
-      (total / shelter_capacity)
-      + if total mod shelter_capacity = 0 then 0 else 1
+    let shelter_capacity = 200.
+    and country_capacity = 400000.
+    and continent_capacity = 7000000.
+    and planet_capacity = 300000000. in
+    let shelters = int_of_float ((total +. shelter_capacity) /. shelter_capacity)
     and countries =
-      (total / country_capacity)
-      + if total mod country_capacity = 0 then 0 else 1
+      int_of_float ((total +. shelter_capacity) /. country_capacity)
     and continents =
-      (total / continent_capacity)
-      + if total mod continent_capacity = 0 then 0 else 1
+      int_of_float ((total +. shelter_capacity) /. continent_capacity)
     and planets =
-      (total / planet_capacity) + if total mod planet_capacity = 0 then 0 else 1
+      int_of_float ((total +. shelter_capacity) /. planet_capacity)
     in
     let cats =
       if total < shelter_capacity then
@@ -136,15 +154,17 @@ let view_pyramid ?(by_month = false) parameters population months =
       else List.init planets (fun _ -> "🌍") |> String.concat ""
     in
     let display_total =
-      Printf.sprintf "%d %s" total
-        (koncnica "mačka" "mački" "mačke" "mačk" total)
+      Printf.sprintf "%s %s" (round total)
+        (koncnica_niza "mačka" "mački" "mačke" "mačk" (round total))
       ^
       if total > planet_capacity then
         Printf.sprintf " oz. %d-krat toliko, kolikor je mačk na svetu" planets
       else if total > continent_capacity then
-        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk v Evropi" continents
+        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk v Evropi"
+          continents
       else if total > country_capacity then
-        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk v Sloveniji" countries
+        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk v Sloveniji"
+          countries
       else if total > shelter_capacity then
         Printf.sprintf " oz. %d %s Ljubljana" shelters
           (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" shelters)
@@ -303,9 +323,9 @@ let view_stage parameters = function
           text
             "Če zgodbo nadaljujemo še nekaj let, pa dobimo še večje številke. ";
           text "Tako lahko zaključimo, da je ";
-          elt "strong" [ view_text "1 + 1 = %d!" (round total) ];
+          elt "strong" [ view_text "1 + 1 = %s!" (round total) ];
           view_pyramid parameters population (Model.Month 0 :: months);
-          view_text "Poleg vsega pa je v tem času poginilo tudi %d mladičkov. "
+          view_text "Poleg vsega pa je v tem času poginilo tudi %s mladičkov. "
             (round (Model.dead_kittens parameters population));
           text
             "Najboljši način, da tako umirimo rast kot preprečimo veliko \
