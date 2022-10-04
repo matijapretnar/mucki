@@ -243,7 +243,7 @@ let view_stage parameters = function
       elt "p"
         [
           (if first then
-           text "Pri drevesu bomo potomce risali kar pod njihovo mamo:"
+           text "Pri drevesu bomo potomce risali pod njihovo mamo:"
           else text "");
           elt "ul" (view_cats cats);
           (match mating_months_left with
@@ -265,7 +265,7 @@ let view_stage parameters = function
               text
                 "Ker drevo postaja že malo nepregledno, raje poglejmo, koliko \
                  je bilo mačk v vsakem obdobju."
-          | _ :: _ -> text "Tudi to ni zadnje leglo v tem letu…");
+          | _ :: _ -> text "Tudi to še ni zadnje leglo v tem letu…");
         ]
   | Model.EndOfFirstYear population ->
       div
