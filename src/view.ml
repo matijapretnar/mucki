@@ -186,9 +186,7 @@ let view_stage parameters = function
             [
               text "Ali vedno velja ";
               elt "strong" [ text "1 + 1 = 2" ];
-              text
-                "? Videli bomo, da v naravi ne! Pa vzemimo dva potepuha:\n\
-                \                 1 mačka ";
+              text "? Videli bomo, da v naravi ne! Nekoč sta bila: 1 mačka ";
               view_cat_name female;
               text " in 1 maček ";
               view_cat_name male;
