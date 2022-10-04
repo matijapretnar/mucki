@@ -140,11 +140,11 @@ let view_pyramid ?(by_month = false) parameters population months =
         (koncnica "mačka" "mački" "mačke" "mačk" total)
       ^
       if total > planet_capacity then
-        Printf.sprintf " oz. %d-krat kolikor je mačk na svetu" planets
+        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk na svetu" planets
       else if total > continent_capacity then
-        Printf.sprintf " oz. %d-krat kolikor je mačk v Evropi" continents
+        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk v Evropi" continents
       else if total > country_capacity then
-        Printf.sprintf " oz. %d-krat kolikor je mačk v Sloveniji" countries
+        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk v Sloveniji" countries
       else if total > shelter_capacity then
         Printf.sprintf " oz. %d %s Ljubljana" shelters
           (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" shelters)
