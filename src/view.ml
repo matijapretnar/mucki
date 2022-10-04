@@ -106,13 +106,21 @@ let view_pyramid ?(by_month = false) parameters population months =
     and males = round count.surviving_males in
     let total = females + males in
 
-    let shelter_capacity = 200 and country_capacity = 400000 in
+    let shelter_capacity = 200
+    and country_capacity = 400000
+    and continent_capacity = 7000000
+    and planet_capacity = 300000000 in
     let shelters =
       (total / shelter_capacity)
       + if total mod shelter_capacity = 0 then 0 else 1
     and countries =
       (total / country_capacity)
       + if total mod country_capacity = 0 then 0 else 1
+    and continents =
+      (total / continent_capacity)
+      + if total mod continent_capacity = 0 then 0 else 1
+    and planets =
+      (total / planet_capacity) + if total mod planet_capacity = 0 then 0 else 1
     in
     let cats =
       if total < shelter_capacity then
@@ -121,15 +129,22 @@ let view_pyramid ?(by_month = false) parameters population months =
         |> Names.premesaj |> String.concat ""
       else if total < country_capacity then
         List.init shelters (fun _ -> "🏨") |> String.concat ""
-      else List.init countries (fun _ -> "🇸🇮") |> String.concat ""
+      else if total < continent_capacity then
+        List.init countries (fun _ -> "🇸🇮") |> String.concat ""
+      else if total < planet_capacity then
+        List.init continents (fun _ -> "🇪🇺") |> String.concat ""
+      else List.init planets (fun _ -> "🌍") |> String.concat ""
     in
     let display_total =
       Printf.sprintf "%d %s" total
         (koncnica "mačka" "mački" "mačke" "mačk" total)
       ^
-      if total > country_capacity then
-        Printf.sprintf " oz. %d %s" countries
-          (koncnica "Slovenijo" "Sloveniji" "Slovenije" "Slovenij" countries)
+      if total > planet_capacity then
+        Printf.sprintf " oz. %d-krat kolikor je mačk na svetu" planets
+      else if total > continent_capacity then
+        Printf.sprintf " oz. %d-krat kolikor je mačk v Evropi" continents
+      else if total > country_capacity then
+        Printf.sprintf " oz. %d-krat kolikor je mačk v Sloveniji" countries
       else if total > shelter_capacity then
         Printf.sprintf " oz. %d %s Ljubljana" shelters
           (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" shelters)
