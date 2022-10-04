@@ -87,7 +87,7 @@ and view_cat ?show_still_alive (cat : Model.cat) =
         ]
 
 let round n =
-  let n = float_of_int n in
+  let n = n in
   let k = 10. ** max 0. (ceil (log10 n) -. 2.0) in
   int_of_float k * int_of_float (Float.round (n /. k))
 
@@ -102,7 +102,9 @@ let view_pyramid ?(by_month = false) parameters population months =
                      parameters.Model.months_of_lifespan)
       |> Model.count_size
     in
-    let total = round (count.surviving_females + count.surviving_males) in
+    let females = round count.surviving_females
+    and males = round count.surviving_males in
+    let total = females + males in
 
     let shelter_capacity = 200 and country_capacity = 400000 in
     let shelters =
@@ -114,8 +116,8 @@ let view_pyramid ?(by_month = false) parameters population months =
     in
     let cats =
       if total < shelter_capacity then
-        List.init count.surviving_females (fun _ -> female_image)
-        @ List.init count.surviving_males (fun _ -> male_image)
+        List.init females (fun _ -> female_image)
+        @ List.init males (fun _ -> male_image)
         |> Names.premesaj |> String.concat ""
       else if total < country_capacity then
         List.init shelters (fun _ -> "🏨") |> String.concat ""
@@ -289,7 +291,7 @@ let view_stage parameters = function
           elt "strong" [ view_text "1 + 1 = %d!" (round total) ];
           view_pyramid parameters population (Model.Month 0 :: months);
           view_text "Poleg vsega pa je v tem času poginilo tudi %d mladičkov. "
-            (Model.dead_kittens parameters population);
+            (round (Model.dead_kittens parameters population));
           text
             "Najboljši način, da tako umirimo rast kot preprečimo veliko \
              nepotrebnih smrti, je sterilizacija. Preizkusite spodnje možnosti \
