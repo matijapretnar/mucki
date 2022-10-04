@@ -196,10 +196,8 @@ let view_stage parameters = function
             ];
           elt "p"
             ([
-               view_text "Ker imajo mačke mladiče ";
-               litters_per_year_dropdown parameters;
-               text " na leto, po ";
-               text (string_of_int parameters.months_of_gestation);
+               text "Po ";
+               text (string_of_int parameters.Model.months_of_gestation);
                text
                  (koncnica " mesecu" " mesecih" " mesecih" " mesecih"
                     parameters.months_of_gestation);
@@ -243,17 +241,33 @@ let view_stage parameters = function
                  narišimo kar njihovo drevo.";
             ];
         ]
-  | Model.FirstYearLitter { cats; mating_months_left; _ } ->
+  | Model.FirstYearLitter { cats; mating_months_left; first; _ } ->
       elt "p"
         [
-          text "Pri drevesu bomo potomce risali kar pod njihovo mamo:";
+          (if first then
+           text "Pri drevesu bomo potomce risali kar pod njihovo mamo:"
+          else text "");
           elt "ul" (view_cats cats);
-          text
-            (match mating_months_left with
-            | [] ->
+          (match mating_months_left with
+          | [] when first ->
+              div
+                [
+                  view_text "Ker imajo mačke mladiče ";
+                  litters_per_year_dropdown parameters;
+                  text " na leto, je to zadnje leglo v tem letu.";
+                ]
+          | _ :: _ when first ->
+              div
+                [
+                  view_text "Ker imajo mačke mladiče ";
+                  litters_per_year_dropdown parameters;
+                  text " na leto, to ni zadnje leglo v tem letu…";
+                ]
+          | [] ->
+              text
                 "Ker drevo postaja že malo nepregledno, raje poglejmo, koliko \
                  je bilo mačk v vsakem obdobju."
-            | _ :: _ -> "Seveda to ni zadnje leglo v tem letu…");
+          | _ :: _ -> text "Tudi to ni zadnje leglo v tem letu…");
         ]
   | Model.EndOfFirstYear population ->
       div

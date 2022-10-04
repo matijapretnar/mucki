@@ -353,6 +353,7 @@ type stage =
       mating_month : month;
       mating_months_left : month list;
       cats : cats;
+      first : bool;
     }
   | EndOfFirstYear of population
   | Over of { year : year; population : population }
@@ -360,7 +361,9 @@ type stage =
 let next_stage parameters names = function
   | Introduction { female; male; mating_month; mating_months_left; _ } ->
       let cats = [ female; male ] in
-      (names, FirstYearLitter { mating_month; mating_months_left; cats })
+      ( names,
+        FirstYearLitter { mating_month; mating_months_left; cats; first = true }
+      )
   | FirstYearLitter { mating_months_left = []; cats; _ } ->
       ( names,
         EndOfFirstYear
@@ -368,7 +371,9 @@ let next_stage parameters names = function
   | FirstYearLitter
       { mating_months_left = mating_month :: mating_months_left; cats; _ } ->
       let names, cats = mate_cats parameters names mating_month cats in
-      (names, FirstYearLitter { mating_month; mating_months_left; cats })
+      ( names,
+        FirstYearLitter
+          { mating_month; mating_months_left; cats; first = false } )
   | EndOfFirstYear population ->
       let new_year, new_population =
         List.init parameters.years_of_simulation (fun y -> Year (y + 1))
