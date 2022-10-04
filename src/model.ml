@@ -18,7 +18,7 @@ end = struct
              if Random.int 101 < p then sample_bernoulli (succ acc) (pred n)
              else sample_bernoulli acc (pred n)
        in *)
-    n *. (float_of_int p /. 100.)
+    Float.round (n *. (float_of_int p /. 100.))
 
   let inverse (Percent p) = Percent (100 - p)
   let ratio (Percent p) (Percent q) = Percent (100 * p / q)
