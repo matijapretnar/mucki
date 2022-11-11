@@ -94,24 +94,33 @@ and view_cat ?show_still_alive (cat : Model.cat) =
           elt "ul" (view_cats children);
         ]
 
-let round n =
-  let thousands = floor (log10 n /. 3.) -. 1. in
-  let m = int_of_float (n /. (1000. ** thousands))
-  and e = int_of_float thousands in
-  if e >= 1 then
-    if m >= 1000 then
-      let o = m mod 1000 in
-      let o =
-        if o < 10 then Format.sprintf "00%d" o
-        else if o < 100 then Format.sprintf "0%d" o
-        else Format.sprintf "%d" o
-      in
-      Format.sprintf "%d,%s,%s" (m / 1000) o
-        (String.concat "," (List.init e (fun _ -> "000")))
-    else
-      Format.sprintf "%d,%s" m
-        (String.concat "," (List.init e (fun _ -> "000")))
-  else string_of_int (int_of_float n)
+let view_float x =
+  let cut_into_chunks ?(k = 3) str =
+    let n = String.length str in
+    let first_chunk = String.sub str 0 (n mod k) in
+    List.init (n / k) (fun i -> String.sub str (n - (k * (i + 1))) k)
+    |> List.rev
+    |> fun chunks ->
+    (if first_chunk = "" then chunks else first_chunk :: chunks)
+    |> String.concat ","
+  and to_digits ?(significant = 4) x =
+    let digit_count = int_of_float (log10 x) + 1 in
+    let nonsignificant = digit_count - significant in
+    if nonsignificant > 0 then
+      let m = int_of_float (x /. (10. ** float_of_int nonsignificant)) in
+      string_of_int m ^ String.init nonsignificant (fun _ -> '0')
+    else string_of_int (int_of_float x)
+  in
+  x |> to_digits |> cut_into_chunks
+
+let rec capacity_parameters count = function
+  | [] -> None
+  | (capacity, icon, analogy_fun) :: _ when capacity < count ->
+      let units = int_of_float (ceil (count /. capacity)) in
+      let icons = List.init units (fun _ -> icon) |> String.concat ""
+      and analogy = analogy_fun units in
+      Some (icons, analogy)
+  | _ :: capacities -> capacity_parameters count capacities
 
 let view_pyramid ?(by_month = false) parameters population months =
   let view_month month =
@@ -127,58 +136,48 @@ let view_pyramid ?(by_month = false) parameters population months =
     let females = int_of_float count.surviving_females
     and males = int_of_float count.surviving_males in
     let total = count.surviving_males +. count.surviving_females in
-
-    let shelter_capacity = 200.
-    and country_capacity = 400000.
-    and continent_capacity = 7000000.
-    and planet_capacity = 300000000. in
-    let shelters = int_of_float ((total +. shelter_capacity) /. shelter_capacity)
-    and countries =
-      int_of_float ((total +. shelter_capacity) /. country_capacity)
-    and continents =
-      int_of_float ((total +. shelter_capacity) /. continent_capacity)
-    and planets =
-      int_of_float ((total +. shelter_capacity) /. planet_capacity)
-    in
-    let cats =
-      if total < shelter_capacity then
-        List.init females (fun _ -> female_image)
-        @ List.init males (fun _ -> male_image)
-        |> Names.premesaj |> String.concat ""
-      else if total < country_capacity then
-        List.init shelters (fun _ -> "🏨") |> String.concat ""
-      else if total < continent_capacity then
-        List.init countries (fun _ -> "🇸🇮") |> String.concat ""
-      else if total < planet_capacity then
-        List.init continents (fun _ -> "🇪🇺") |> String.concat ""
-      else List.init planets (fun _ -> "🌍") |> String.concat ""
+    let capacities =
+      [
+        ( 300000000.,
+          "🌍",
+          Printf.sprintf "%d-krat toliko, kolikor je mačk na svetu" );
+        ( 7000000.,
+          "🇪🇺",
+          Printf.sprintf "%d-krat toliko, kolikor je mačk v Evropi" );
+        ( 400000.,
+          "🇸🇮",
+          Printf.sprintf "%d-krat toliko, kolikor je mačk v Sloveniji" );
+        ( 200.,
+          "🏨",
+          fun shelters ->
+            Printf.sprintf "%d %s Ljubljana" shelters
+              (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" shelters)
+        );
+      ]
     in
     let display_total =
-      Printf.sprintf "%s %s" (round total)
-        (koncnica_niza "mačka" "mački" "mačke" "mačk" (round total))
-      ^
-      if total > planet_capacity then
-        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk na svetu" planets
-      else if total > continent_capacity then
-        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk v Evropi"
-          continents
-      else if total > country_capacity then
-        Printf.sprintf " oz. %d-krat toliko, kolikor je mačk v Sloveniji"
-          countries
-      else if total > shelter_capacity then
-        Printf.sprintf " oz. %d %s Ljubljana" shelters
-          (koncnica "zavetišče" "zavetišči" "zavetišča" "zavetišč" shelters)
-      else ""
+      Printf.sprintf "%s %s" (view_float total)
+        (koncnica_niza "mačka" "mački" "mačke" "mačk" (view_float total))
     in
-
+    let icons, display =
+      match capacity_parameters total capacities with
+      | Some (icons, analogy) -> (icons, display_total ^ " oz. " ^ analogy)
+      | None ->
+          let icons =
+            List.init females (fun _ -> female_image)
+            @ List.init males (fun _ -> male_image)
+            |> Names.premesaj |> String.concat ""
+          in
+          (icons, display_total)
+    in
     [
       elt "tr"
         [
           elt "th"
             [ (if by_month then view_month month else view_month_year month) ];
-          elt "td" [ text display_total ];
+          elt "td" [ text display ];
         ];
-      elt "tr" [ elt "td" ~a:[ attr "colspan" "2" ] [ text cats ] ];
+      elt "tr" [ elt "td" ~a:[ attr "colspan" "2" ] [ text icons ] ];
     ]
   in
 
@@ -323,10 +322,10 @@ let view_stage parameters = function
           text
             "Če zgodbo nadaljujemo še nekaj let, pa dobimo še večje številke. ";
           text "Tako lahko zaključimo, da je ";
-          elt "strong" [ view_text "1 + 1 = %s!" (round total) ];
+          elt "strong" [ view_text "1 + 1 = %s!" (view_float total) ];
           view_pyramid parameters population (Model.Month 0 :: months);
           view_text "Poleg vsega pa je v tem času poginilo tudi %s mladičkov. "
-            (round (Model.dead_kittens parameters population));
+            (view_float (Model.dead_kittens parameters population));
           text
             "Najboljši način, da tako umirimo rast kot preprečimo veliko \
              nepotrebnih smrti, je sterilizacija. Preizkusite spodnje možnosti \
